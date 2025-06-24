@@ -1,8 +1,8 @@
 <?php
 $host = 'localhost';
-$db = 'u648829741_db_takamul';
-$user = 'u648829741_takamuluser';
-$pass = 'y3>[[VUvC$8Z';
+$db = 'takamul';
+$user = 'root';
+$pass = '';
 
 try {
     $pdo = new PDO("mysql:host=$host;dbname=$db;charset=utf8", $user, $pass);
