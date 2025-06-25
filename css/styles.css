@@ -1,11 +1,13 @@
-/* Global Resets and Base Styles */
+/* =================================
+   1. Global & Common Styles
+   ================================= */
 :root {
-    --primary: #8a2be2; /* بنفسجي */
-    --secondary: #ff6b6b; /* أحمر مرجاني */
-    --accent: #4ecdc4; /* تركواز */
-    --light: #f8f9fa; /* رمادي فاتح جداً */
-    --dark: #212529; /* أسود فحمي */
-    --success: #28a745; /* أخضر */
+    --primary: #8a2be2;
+    --secondary: #ff6b6b;
+    --accent: #4ecdc4;
+    --light: #f8f9fa;
+    --dark: #212529;
+    --success: #28a745;
 }
 
 * {
@@ -16,29 +18,18 @@
 
 body {
     font-family: 'Tajawal', sans-serif;
-    direction: rtl;
     background: linear-gradient(135deg, #f5f7fa 0%, #e4e7f1 100%);
     color: var(--dark);
     line-height: 1.6;
-    min-height: 100vh; /* لضمان أن الخلفية تغطي كامل ارتفاع الشاشة */
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
 }
 
-/* Beta Banner (if used globally) */
-.beta-banner {
-    position: fixed;
-    top: 15px;
-    left: 15px;
-    background-color: var(--secondary);
-    color: white;
-    padding: 6px 12px;
-    font-size: 0.85rem;
-    font-weight: 700;
-    border-radius: 4px;
-    z-index: 1001;
-    box-shadow: 0 2px 5px rgba(0,0,0,0.15);
-}
-
-/* Header Styles */
+/* =================================
+   2. Header & Navigation
+   ================================= */
 header {
     background: linear-gradient(120deg, var(--primary), #5c1d9c);
     color: white;
@@ -47,725 +38,80 @@ header {
     position: sticky;
     top: 0;
     z-index: 1000;
+    width: 100%;
 }
 
 .header-container {
-    max-width: 1200px;
-    margin: 0 auto;
-    padding: 0 20px;
     display: flex;
     justify-content: space-between;
     align-items: center;
+    max-width: 1400px;
+    margin: 0 auto;
+    padding: 0 20px;
 }
 
 .logo {
     display: flex;
     align-items: center;
-    gap: 60px; /* المسافة بين الشعار والنص */
+    gap: 15px;
 }
 
 .logo-image {
-    width: 140px;
-    height: 140px;
+    width: 50px;
+    height: 50px;
     object-fit: contain;
 }
 
 .logo-text {
-    font-size: 1.8rem;
+    font-size: 1.5rem;
     font-weight: 800;
-    letter-spacing: -0.5px;
 }
 
 .logo-subtext {
-    font-size: 0.9rem;
+    font-size: 0.8rem;
     opacity: 0.9;
 }
 
-nav ul {
-    list-style: none;
-    display: flex;
-    gap: 20px; /* المسافة بين عناصر القائمة */
-}
-
-nav a {
-    color: white;
-    text-decoration: none;
-    font-weight: 500;
-    padding: 10px 20px;
-    border-radius: 30px;
-    transition: all 0.3s ease;
+.admin-nav {
     display: flex;
     align-items: center;
-    gap: 12px; /* المسافة بين الأيقونة والنص */
+    gap: 20px;
 }
 
-nav a i {
-    font-size: 1.8rem;
+.welcome-message {
+    font-size: 1rem;
+    font-weight: 500;
 }
 
-nav a:hover, nav a.active {
+.logout-btn-header {
     background: rgba(255, 255, 255, 0.15);
-}
-
-/* Hero Section Styles (from index.php) */
-.hero {
-    background: linear-gradient(rgba(78, 205, 196, 0.9), rgba(78, 205, 196, 0.7)), url('https://images.unsplash.com/photo-1519389950473-47ba0277781c?ixlib=rb-4.0.3&auto=format&fit=crop&w=1500&q=80');
-    background-size: cover;
-    background-position: center;
-    padding: 5rem 2rem;
-    text-align: center;
-}
-
-.hero h1 {
-    font-size: 3rem;
-    margin-bottom: 1rem;
-    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
     color: white;
-}
-
-.hero p {
-    font-size: 1.2rem;
-    max-width: 700px;
-    margin: 0 auto 2rem;
-    opacity: 0.95;
-    color: white;
-}
-
-.search-box {
-    max-width: 700px;
-    margin: 0 auto;
-    background: rgba(255, 255, 255, 0.2);
-    border-radius: 50px;
-    padding: 5px;
-    display: flex;
-    backdrop-filter: blur(5px);
-}
-
-.search-box input {
-    flex: 1;
-    border: none;
-    background: white;
-    padding: 15px 25px;
-    border-radius: 0 50px 50px 0; /* Adjusted for RTL */
-    font-size: 1.1rem;
-    outline: none;
-}
-
-.search-box button {
-    background: var(--secondary);
-    color: white;
-    border: none;
-    padding: 15px 30px;
-    border-radius: 50px 0 0 50px; /* Adjusted for RTL */
-    font-size: 1.1rem;
+    padding: 8px 15px;
+    border-radius: 30px;
+    text-decoration: none;
     font-weight: 600;
-    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
     transition: all 0.3s ease;
 }
 
-.search-box button:hover {
-    background: #ff5252;
+.logout-btn-header:hover {
+    background: rgba(255, 255, 255, 0.3);
+    transform: translateY(-2px);
 }
 
-/* Filters Section Styles (from index.php) */
-.filters-section {
-    background: white;
-    padding: 1.5rem;
-    border-radius: 15px;
-    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.05);
-    max-width: 1200px;
-    margin: -50px auto 30px; /* Negative margin to overlap hero */
-    position: relative;
-    z-index: 10;
-}
-
-.section-title {
-    text-align: center;
-    margin-bottom: 2rem;
-    color: var(--primary);
-    position: relative;
-    padding-bottom: 15px;
-}
-
-.section-title::after {
-    content: '';
-    position: absolute;
-    bottom: 0;
-    left: 50%;
-    transform: translateX(-50%);
-    width: 80px;
-    height: 4px;
-    background: var(--secondary);
-    border-radius: 2px;
-}
-
-.filters-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-    gap: 20px;
-}
-
-.filter-group {
-    margin-bottom: 1.5rem; /* Spacing for filter groups */
-}
-
-.filter-group h3 {
-    margin-bottom: 12px;
-    color: var(--dark);
-    font-size: 1rem;
-    display: flex;
-    align-items: center;
-}
-
-.filter-group h3 i {
-    color: var(--primary);
-    margin-left: 8px; /* For RTL */
-}
-
-.filter-group select {
+/* =================================
+   3. Generic Admin Layout
+   ================================= */
+.admin-section {
     width: 100%;
-    padding: 8px 12px;
-    border-radius: 30px;
-    border: 2px solid #e0e0e0;
-    font-family: 'Tajawal', sans-serif;
-    font-size: 0.85rem;
-    outline: none;
-    background-color: white;
-}
-
-.filter-actions {
-    display: flex;
-    justify-content: center;
-    gap: 15px;
-    margin-top: 20px;
-}
-
-.action-btn {
-    padding: 8px 20px;
-    border-radius: 25px; /* تدوير حواف أكثر نعومة */
-    font-weight: 600;
-    font-size: 0.9rem;
-    cursor: pointer;
-    transition: all 0.3s ease;
-    text-decoration: none; /* Ensure links styled as buttons don't have underlines */
-    border: 2px solid transparent; /* إضافة حدود شفافة للتحكم في الحجم عند التحويم */
-    display: inline-flex; /* لمحاذاة الأيقونة والنص بشكل أفضل إذا وجد */
-    align-items: center;
-    gap: 8px;
-}
-
-.apply-btn {
-    background: var(--primary);
-    color: white;
-    border: 2px solid var(--primary);
-}
-.apply-btn:hover {
-    background: #7a1fc2; /* لون أغمق قليلاً عند التحويم */
-    border-color: #7a1fc2;
-    transform: translateY(-2px);
-    box-shadow: 0 4px 8px rgba(0,0,0,0.1);
-}
-
-.reset-btn {
-    background: white;
-    color: var(--dark);
-    border: 2px solid #e0e0e0;
-}
-.reset-btn:hover {
-    background: #f5f5f5;
-    border-color: #ccc;
-    transform: translateY(-2px);
-    box-shadow: 0 4px 8px rgba(0,0,0,0.1);
-}
-.reset-btn i { /* إذا كنت ستضيف أيقونات لهذه الأزرار */
-    margin-left: 5px;
-}
-
-/* Programs Section Styles (from index.php) */
-.programs-section {
-    max-width: 1200px;
-    margin: 0 auto 50px;
-    padding: 0 20px;
-}
-
-.programs-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 30px;
-    flex-wrap: wrap;
-    gap: 20px;
-}
-
-.results-count {
-    font-size: 1.1rem;
-    font-weight: 600;
-}
-
-.sort-options select {
-    padding: 10px 15px;
-    border-radius: 30px;
-    border: 2px solid #e0e0e0;
-    font-family: 'Tajawal', sans-serif;
-    font-size: 1rem;
-    outline: none;
-}
-
-/* View Toggling Controls (from index.php) */
-.view-controls {
-    margin-bottom: 20px;
-    text-align: center;
-}
-.view-controls .view-toggle-btn {
-    padding: 12px 22px; /* زيادة الحشوة */
-    margin: 0 8px;
-    cursor: pointer;
-    border: 2px solid var(--primary); /* حدود أوضح */
-    background-color: white;
-    color: var(--primary); /* لون النص الأساسي للزر */
-    border-radius: 25px; /* تدوير حواف أكثر نعومة */
-    transition: background-color 0.3s, color 0.3s, transform 0.2s, box-shadow 0.2s;
-    font-family: 'Tajawal', sans-serif;
-    font-size: 1rem;
-    font-weight: 500;
-    box-shadow: 0 2px 5px rgba(0,0,0,0.08); /* ظل أعمق قليلاً */
-    display: inline-flex; /* لمحاذاة الأيقونة والنص */
-    align-items: center;
-    gap: 8px;
-}
-
-.view-controls .view-toggle-btn:hover {
-    background-color: var(--primary);
-    color: white; /* لون النص عند التحويم */
-    transform: translateY(-2px);
-    box-shadow: 0 5px 10px rgba(138, 43, 226, 0.25); /* ظل أوضح عند التحويم */
-}
-.view-controls .view-toggle-btn.active {
-    background-color: var(--primary);
-    color: white; /* لون النص للزر النشط */
-    box-shadow: 0 3px 6px rgba(138, 43, 226, 0.25);
-    transform: translateY(-1px);
-}
-
-.view-container {
-    display: none;
-    animation: fadeInView 0.5s ease-in-out;
-}
-
-.view-container.active-view {
-    display: block; /* Or 'grid' if .programs-grid uses grid */
-}
-
-@keyframes fadeInView {
-    from { opacity: 0; transform: translateY(10px); }
-    to { opacity: 1; transform: translateY(0); }
-}
-
-/* Program Cards Grid (from index.php) */
-.programs-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
-    gap: 30px;
-}
-
-/* Program Card Styles (from index.php and original styles.css) */
-.program-card {
-    background: white;
-    border-radius: 15px;
-    overflow: hidden;
-    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.05);
-    transition: all 0.3s ease;
-    display: flex;
-    flex-direction: column;
-    height: 100%;
-}
-
-.program-card:hover {
-    transform: translateY(-10px);
-    box-shadow: 0 12px 25px rgba(0, 0, 0, 0.1);
-}
-
-.card-header {
-    padding: 20px 20px 15px;
-    background: linear-gradient(120deg, var(--accent), #3daaa4);
-    color: white;
-}
-
-.program-title {
-    font-size: 1.4rem;
-    margin-bottom: 5px;
-}
-
-.organization {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    font-size: 0.95rem;
-    opacity: 0.9;
-}
-
-.card-body {
-    padding: 20px;
-    flex: 1;
-}
-
-.program-details {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 15px;
-    margin-bottom: 20px;
-}
-
-.detail-item {
-    display: flex;
-    align-items: flex-start;
-    gap: 10px;
-}
-
-.detail-icon {
-    color: var(--primary);
-    font-size: 1.1rem;
-    margin-top: 3px;
-}
-
-.detail-text {
-    font-size: 0.95rem;
-}
-
-.program-description {
-    margin: 20px 0;
-    font-size: 0.95rem;
-    line-height: 1.7;
-    color: #555;
-}
-
-.card-footer {
-    padding: 0 20px 20px;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-}
-
-.program-fee {
-    background: #f0f7ff;
-    color: var(--primary);
-    padding: 6px 15px;
-    border-radius: 30px;
-    font-weight: 700;
-    font-size: 0.95rem;
-}
-
-.free-badge {
-    background: var(--success);
-    color: white;
-}
-
-.register-btn {
-    background: var(--primary);
-    color: white;
-    border: none;
-    padding: 8px 20px;
-    border-radius: 30px;
-    font-weight: 600;
-    cursor: pointer;
-    transition: all 0.3s ease;
-    text-decoration: none;
-    display: inline-block;
-    font-size: 0.95rem;
-}
-
-.register-btn:hover {
-    background: #7a1fc2;
-}
-
-/* Public Programs Table Styles (to match admin dashboard table) */
-.programs-table-public {
-    width: 100%;
-    border-collapse: collapse;
-    background: var(--light); /* نفس خلفية جدول الأدمن */
-    border-radius: 10px; /* نفس تدوير حواف جدول الأدمن */
-    overflow: hidden; /* لإخفاء أي زوائد من الحواف المدورة */
-    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1); /* نفس ظل جدول الأدمن */
-    margin: 20px auto;
-    /* table-layout: fixed; /* يمكنك تجربته إذا كان عرض الأعمدة لا يزال مشكلة */
-}
-.programs-table-public th, .programs-table-public td {
-    padding: 12px 15px;
-    text-align: right;
-    border-bottom: 1px solid #ddd; /* نفس حدود جدول الأدمن */
-    font-size: 0.95rem;
-    word-wrap: break-word;
-}
-.programs-table-public th {
-    background-color: var(--accent); /* تم تغيير لون رأس الجدول ليقترب من لون رأس البطاقة */
-    color: white;
-    font-weight: 600;
-    font-size: 1rem;
-}
-
-/* عرض الأعمدة لجدول البرامج العام - عدّل هذه النسب حسب الحاجة */
-.programs-table-public th:nth-child(1), .programs-table-public td:nth-child(1) { width: 25%; } /* عنوان البرنامج */
-.programs-table-public th:nth-child(2), .programs-table-public td:nth-child(2) { width: 20%; } /* اسم الجهة المنظمة */
-.programs-table-public th:nth-child(3), .programs-table-public td:nth-child(3) { width: 12%; text-align: center;} /* تاريخ البدء */
-.programs-table-public th:nth-child(4), .programs-table-public td:nth-child(4) { width: 15%; } /* مكان البرنامج */
-.programs-table-public th:nth-child(5), .programs-table-public td:nth-child(5) { width: 10%; text-align: center;} /* الفئة العمرية */
-.programs-table-public th:nth-child(6), .programs-table-public td:nth-child(6) { width: 8%; text-align: center; } /* رسوم البرنامج */
-.programs-table-public th:nth-child(7), .programs-table-public td:nth-child(7) { width: 10%; text-align: center; } /* رابط التسجيل */
-
-.programs-table-public td:nth-child(7) a {
-    white-space: nowrap;
-}
-.programs-table-public tbody tr:nth-child(odd) { /* لجعل الصفوف الفردية أغمق مثل الداشبورد */
-    background-color: #e9ecef;
-}
-.programs-table-public tbody tr:hover {
-    background-color: #e0e0e0; /* لون تحويم مختلف قليلاً عن الداشبورد لتمييزه */
-    transform: scale(1.005);
-    transition: transform 0.2s ease-out;
-}
-.register-btn-table {
-    background: var(--secondary);
-    color: white;
-    padding: 6px 12px;
-    border-radius: 20px;
-    text-decoration: none;
-    font-size: 0.85rem;
-    transition: background-color 0.3s, transform 0.2s;
-    display: inline-block;
-}
-.register-btn-table:hover {
-    background: #e55a5a;
-    transform: scale(1.05);
-}
-
-
-/* Footer Styles */
-.site-footer { /* Renamed from footer to avoid conflict if any */
-    background: var(--dark);
-    color: white;
-    padding: 3rem 0 2rem;
-}
-
-.footer-container {
-    max-width: 1200px;
-    margin: 0 auto;
-    padding: 0 20px;
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-    gap: 40px;
-}
-
-.footer-col { /* Changed from .footer-section */
-    margin-bottom: 20px;
-}
-
-.footer-col h3 {
-    font-size: 1.3rem;
-    margin-bottom: 20px;
-    position: relative;
-    padding-bottom: 10px;
-}
-
-.footer-col h3::after {
-    content: '';
-    position: absolute;
-    bottom: 0;
-    left: 0;
-    width: 50px;
-    height: 3px;
-    background: var(--accent);
-}
-
-.footer-col ul, .footer-col p { /* Applied to ul and p within .footer-col */
-    list-style: none;
-    padding: 0;
-}
-
-.footer-col li {
-    margin-bottom: 12px;
-    display: flex;
-    align-items: center;
-    gap: 10px;
-}
-
-.footer-col a {
-    color: #ddd;
-    text-decoration: none;
-    transition: all 0.3s ease;
-}
-
-.footer-col a:hover {
-    color: var(--accent);
-    padding-right: 5px;
-}
-
-.footer-col li i {
-    font-size: 1.6rem;
-    width: 24px;
-    text-align: center;
-    color: var(--accent);
-}
-
-.footer-bottom {
-    text-align: center;
-    padding-top: 30px;
-    margin-top: 30px;
-    border-top: 1px solid #444;
-    font-size: 0.9rem;
-    color: #aaa;
-}
-
-/* Login Page Styles (from admin/login.php and other admin pages) */
-.login-section {
-    max-width: 500px;
-    margin: 50px auto;
-    padding: 20px;
-    animation: fadeIn 1s ease-in-out;
-}
-
-.login-card {
-    background: white;
-    border-radius: 15px;
-    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
-    padding: 30px;
-    text-align: center;
-}
-
-.login-card h2 {
-    color: var(--primary);
-    margin-bottom: 20px;
-    font-size: 1.8rem;
-    position: relative;
-    padding-bottom: 10px;
-}
-
-.login-card h2::after {
-    content: '';
-    position: absolute;
-    bottom: 0;
-    left: 50%;
-    transform: translateX(-50%);
-    width: 60px;
-    height: 3px;
-    background: var(--secondary);
-    border-radius: 2px;
-}
-
-.error-message { /* This is a general error message style, can be used in login too */
-    color: var(--secondary);
-    font-size: 0.95rem;
-    margin-bottom: 15px;
-    padding: 8px;
-    background: #fff0f0;
-    border-radius: 5px;
-    display: flex; /* Added for icon alignment */
-    align-items: center; /* Added for icon alignment */
-    gap: 8px; /* Added for icon alignment */
-    animation: slideIn 0.5s ease-out; /* Added animation */
-}
-.success-message { /* General success message style */
-    color: var(--success);
-    font-size: 0.95rem;
-    margin-bottom: 15px;
-    padding: 8px;
-    background: #e6ffe6;
-    border-radius: 5px;
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    animation: slideIn 0.5s ease-out;
-}
-
-
-.login-form {
-    display: grid;
-    gap: 15px;
-}
-
-/* .form-group is already defined for admin, can be reused or specialized if needed */
-/* .input-icon is specific to login form if icons are inside input fields */
-.login-form .form-group { /* Specializing for login if needed */
-    position: relative;
-    display: flex;
-    flex-direction: column; /* Label above input */
-    align-items: flex-start; /* Align label to start */
-}
-.login-form .form-group label {
-    margin-bottom: 5px; /* Space between label and input */
-    font-weight: 500;
-}
-
-.login-form input {
-    width: 100%;
-    padding: 12px 15px; /* Standard padding */
-    border: 2px solid #e0e0e0;
-    border-radius: 10px; /* Consistent border-radius */
-    font-size: 1rem;
-    outline: none;
-    transition: all 0.3s ease;
-}
-
-.login-form input:focus {
-    border-color: var(--primary);
-    box-shadow: 0 0 5px rgba(138, 43, 226, 0.3);
-}
-
-.form-options {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    font-size: 0.9rem;
-    margin: 10px 0;
-}
-
-.remember-me {
-    display: flex;
-    align-items: center;
-    gap: 5px;
-    color: var(--dark);
-}
-
-.forgot-password {
-    color: var(--primary);
-    text-decoration: none;
-}
-
-.forgot-password:hover {
-    text-decoration: underline;
-}
-
-.login-btn {
-    background: var(--primary);
-    color: white;
-    border: none;
-    padding: 12px 25px; /* زيادة الحشوة الأفقية */
-    border-radius: 10px; /* Consistent border-radius */
-    font-size: 1rem;
-    font-weight: 600;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 8px;
-    cursor: pointer;
-    transition: all 0.3s ease;
-    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-}
-
-.login-btn:hover {
-    background: #7a1fc2;
-    box-shadow: 0 4px 8px rgba(0,0,0,0.15);
-    transform: translateY(-2px);
-}
-
-/* Admin Dashboard & Forms General Styles (from admin pages) */
-.dashboard-section, .add-program-section, .edit-program-section, .delete-program-section, .add-user-section {
-    max-width: 900px;
     margin: 40px auto;
     padding: 20px;
     animation: fadeIn 0.8s ease-out;
 }
 
-.dashboard-card, .add-program-card, .edit-program-card, .delete-program-card, .add-user-card {
+.admin-card {
     background: white;
     border-radius: 20px;
     box-shadow: 0 8px 20px rgba(0, 0, 0, 0.1);
@@ -775,11 +121,11 @@ nav a:hover, nav a.active {
     transition: transform 0.3s ease;
 }
 
-.dashboard-card:hover, .add-program-card:hover, .edit-program-card:hover, .delete-program-card:hover, .add-user-card:hover {
-    transform: scale(1.01);
+.admin-card:hover {
+    transform: scale(1.02);
 }
 
-.dashboard-card h2, .add-program-card h2, .edit-program-card h2, .delete-program-card h2, .add-user-card h2 {
+.admin-card h2 {
     color: var(--primary);
     font-size: 1.8rem;
     margin-bottom: 1.5rem;
@@ -787,7 +133,7 @@ nav a:hover, nav a.active {
     padding-bottom: 10px;
 }
 
-.dashboard-card h2::after, .add-program-card h2::after, .edit-program-card h2::after, .delete-program-card h2::after, .add-user-card h2::after {
+.admin-card h2::after {
     content: '';
     position: absolute;
     bottom: 0;
@@ -799,8 +145,10 @@ nav a:hover, nav a.active {
     border-radius: 2px;
 }
 
-/* Admin Forms (add_program, edit_program, add_user) */
-.add-program-form, .edit-program-form, .add-user-form {
+/* =================================
+   4. Forms & Buttons
+   ================================= */
+.admin-form {
     display: flex;
     flex-wrap: wrap;
     gap: 1.5rem;
@@ -832,9 +180,8 @@ nav a:hover, nav a.active {
     color: var(--primary);
 }
 
-.add-program-form input, .add-program-form textarea,
-.edit-program-form input, .edit-program-form textarea,
-.add-user-form input {
+.admin-form input,
+.admin-form textarea {
     width: 100%;
     padding: 12px 15px;
     border: 2px solid #e0e0e0;
@@ -845,27 +192,26 @@ nav a:hover, nav a.active {
     font-family: 'Tajawal', sans-serif;
 }
 
-.add-program-form input#start_date, .edit-program-form input#start_date {
+.admin-form input#start_date {
     cursor: pointer;
 }
 
-.add-program-form textarea, .edit-program-form textarea {
+.admin-form textarea {
     resize: vertical;
     min-height: 120px;
 }
 
-.add-program-form input:focus, .add-program-form textarea:focus,
-.edit-program-form input:focus, .edit-program-form textarea:focus,
-.add-user-form input:focus {
+.admin-form input:focus,
+.admin-form textarea:focus {
     border-color: var(--primary);
     box-shadow: 0 0 8px rgba(138, 43, 226, 0.2);
 }
 
-.add-program-btn, .edit-program-btn, .delete-btn, .add-user-btn {
+.form-btn, .add-program-btn, .edit-program-btn {
     background: var(--primary);
     color: white;
-    border: 2px solid transparent; /* لإضافة مساحة للحدود عند التحويم إذا أردت */
-    padding: 12px 25px; /* تعديل الحشوة */
+    border: none;
+    padding: 14px;
     border-radius: 10px;
     font-size: 1.1rem;
     font-weight: 600;
@@ -876,175 +222,114 @@ nav a:hover, nav a.active {
     cursor: pointer;
     transition: all 0.3s ease;
     margin: 0 auto;
-    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-}
-.delete-btn {
-    background: var(--secondary);
-    border-color: var(--secondary);
 }
 
-.add-program-btn:hover, .edit-program-btn:hover, .add-user-btn:hover {
+.form-btn:hover, .add-program-btn:hover, .edit-program-btn:hover {
     background: #7a1fc2;
     transform: translateY(-2px);
-    box-shadow: 0 5px 10px rgba(0, 0, 0, 0.15);
-    border-color: #7a1fc2;
-}
-.delete-btn:hover {
-    background: #e55a5a;
-    transform: translateY(-2px);
-    box-shadow: 0 5px 10px rgba(0, 0, 0, 0.15);
-    border-color: #e55a5a;
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
 }
 
-.back-btn, .cancel-btn {
+.back-btn {
     display: inline-flex;
     align-items: center;
     gap: 8px;
     background: var(--secondary);
     color: white;
-    padding: 12px 25px; /* تعديل الحشوة */
+    padding: 14px 20px;
     border-radius: 10px;
     text-decoration: none;
     font-weight: 600;
     margin-top: 20px;
     transition: all 0.3s ease;
-    border: 2px solid transparent;
-    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-}
-.cancel-btn { /* Specific for cancel on delete page */
-    background: var(--dark);
-    border-color: var(--dark);
 }
 
 .back-btn:hover {
     background: #e55a5a;
     transform: translateY(-2px);
-    box-shadow: 0 5px 10px rgba(0, 0, 0, 0.15);
-    border-color: #e55a5a;
-}
-.cancel-btn:hover {
-    background: #343a40;
-    transform: translateY(-2px);
-    box-shadow: 0 5px 10px rgba(0, 0, 0, 0.15);
-    border-color: #343a40;
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
 }
 
-/* Admin Dashboard Table */
-.programs-table {
-    width: 100%;
-    border-collapse: collapse;
-    background: var(--light);
-    border-radius: 10px;
-    overflow: hidden;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
-    margin-bottom: 20px;
-}
+/* =================================
+   5. Page-Specific Styles
+   ================================= */
 
-.programs-table th,
-.programs-table td {
-    padding: 12px 15px;
-    text-align: right;
-    border-bottom: 1px solid #ddd;
-}
+/* Dashboard */
+.admin-section.dashboard { max-width: 1400px; }
+.direction-group { margin-bottom: 2.5rem; }
+.direction-heading { text-align: right; font-size: 1.5rem; font-weight: 700; color: var(--dark); margin-bottom: 1rem; padding-bottom: 0.75rem; border-bottom: 3px solid var(--primary); display: flex; align-items: center; gap: 10px; }
+.table-responsive-wrapper { overflow-x: auto; border: 1px solid #ddd; border-radius: 10px; box-shadow: 0 4px 10px rgba(0, 0, 0, 0.05); }
+.programs-table { width: 100%; border-collapse: collapse; min-width: 900px; }
+.programs-table thead th { background: var(--primary); color: white; font-weight: 700; padding: 12px 15px; text-align: right; }
+.programs-table tbody td { padding: 12px 15px; text-align: right; border-bottom: 1px solid #ddd; vertical-align: middle; }
+.programs-table tbody tr:nth-child(even) { background-color: #f8f9fa; }
+.programs-table tbody tr:hover { background-color: #e9ecef; }
+.action-links a { color: var(--primary); text-decoration: none; margin: 0 10px; font-size: 0.9rem; transition: color 0.3s ease; white-space: nowrap; }
+.action-links a.delete { color: var(--secondary); }
+.action-links a:hover { text-decoration: underline; }
 
-.programs-table th {
-    background: var(--primary);
-    color: white;
-    font-weight: 700;
-}
+/* Add/Edit Program */
+.admin-section.program-form { max-width: 900px; }
 
-.programs-table tbody tr:nth-child(odd) {
-    background-color: #e9ecef;
-}
-.programs-table tr:hover {
-    background: #f1f1f1;
-}
+/* Login & Add User */
+.admin-section.user-form { max-width: 450px; }
 
-.action-links a {
-    color: var(--primary);
-    text-decoration: none;
-    margin: 0 10px;
-    font-size: 0.9rem;
-    transition: color 0.3s ease;
-}
-
-.action-links a.delete {
-    color: var(--secondary);
-}
-
-.action-links a:hover {
-    text-decoration: underline;
-}
-
-.logout-btn {
-    display: inline-flex;
+/* Specific styles for the login card and its elements */
+.admin-card .login-logo {
+    display: flex;
+    flex-direction: column;
     align-items: center;
-    gap: 8px;
-    background: var(--secondary);
-    color: white;
-    padding: 10px 20px; /* تعديل الحشوة */
-    border-radius: 10px;
-    text-decoration: none;
-    font-weight: 600;
-    margin-top: 20px;
-    transition: all 0.3s ease;
-    border: 2px solid transparent;
-    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    gap: 10px;
+    margin-bottom: 1.5rem;
 }
 
-.logout-btn:hover {
-    background: #e55a5a;
-    transform: translateY(-2px);
-    box-shadow: 0 5px 10px rgba(0, 0, 0, 0.15);
-    border-color: #e55a5a;
+.admin-card .login-logo .logo-image {
+    width: 100px;
+    height: 100px;
+    object-fit: contain;
+    filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.2)); /* لإضافة ظل جميل للشعار */
 }
 
-/* Hijri Calendar (from admin forms) */
-.hijri-calendar {
-    position: absolute;
-    top: 100%;
-    right: 0;
-    background: white;
-    border: 2px solid var(--primary);
-    border-radius: 15px;
-    box-shadow: 0 10px 30px rgba(0,0,0,0.15);
-    z-index: 1000;
-    padding: 15px;
-    min-width: 300px;
-    display: none;
-    font-family: 'Tajawal', sans-serif;
-}
-.hijri-calendar .nav-btn {
-    background: var(--primary);
-    color: white;
-    border: none;
-    padding: 6px 10px;
-    border-radius: 8px;
-    cursor: pointer;
-    font-size: 1rem;
-    transition: all 0.2s ease;
-}
-.hijri-calendar .nav-btn:hover {
-    background: #7a1fc2;
-}
-.hijri-calendar .hijri-select {
-    padding: 5px 8px;
-    border: 1px solid var(--primary);
-    border-radius: 5px;
-    font-family: 'Tajawal', sans-serif;
-    font-size: 0.9rem;
+.admin-card .login-logo .logo-text {
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: var(--primary);
 }
 
-/* Animations (used in admin and potentially public pages) */
+.admin-card .login-logo .logo-subtext {
+    font-size: 0.85rem;
+    color: #666;
+}
+
+.login-form, .add-user-form { display: grid; gap: 1rem; }
+.form-options { display: flex; justify-content: space-between; align-items: center; font-size: 0.9rem; margin: 10px 0; }
+.remember-me { display: flex; align-items: center; gap: 5px; color: var(--dark); }
+.forgot-password { color: var(--primary); text-decoration: none; }
+.forgot-password:hover { text-decoration: underline; }
+.login-btn, .add-user-btn { background: var(--primary); color: white; border: none; padding: 12px; border-radius: 10px; font-size: 1rem; font-weight: 600; display: flex; align-items: center; justify-content: center; gap: 8px; cursor: pointer; transition: all 0.3s ease; }
+.login-btn:hover, .add-user-btn:hover { background: #7a1fc2; transform: translateY(-2px); box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2); }
+
+/* Delete Program */
+.admin-section.delete-form { max-width: 600px; }
+.confirmation-message { font-size: 1.1rem; margin-bottom: 2rem; color: var(--dark); }
+.confirmation-message strong { color: var(--secondary); }
+.delete-program-form { display: flex; justify-content: center; gap: 1rem; }
+.delete-btn { background: var(--secondary); color: white; border: none; padding: 14px 20px; border-radius: 10px; font-size: 1.1rem; font-weight: 600; display: flex; align-items: center; justify-content: center; gap: 8px; cursor: pointer; transition: all 0.3s ease; }
+.delete-btn:hover { background: #e55a5a; transform: translateY(-2px); box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2); }
+.cancel-btn { background: var(--dark); color: white; border: none; padding: 14px 20px; border-radius: 10px; font-size: 1.1rem; font-weight: 600; display: flex; align-items: center; justify-content: center; gap: 8px; cursor: pointer; transition: all 0.3s ease; text-decoration: none; }
+.cancel-btn:hover { background: #343a40; transform: translateY(-2px); box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2); }
+
+/* Message Styles */
+.error-message, .success-message { display: flex; align-items: center; gap: 8px; font-size: 0.9rem; margin-bottom: 1rem; padding: 10px; border-radius: 8px; animation: slideIn 0.5s ease-out; }
+.error-message { color: var(--secondary); background: #fff0f0; }
+.success-message { color: var(--success); background: #e6ffe6; }
+
+/* =================================
+   6. Animations & Responsive
+   ================================= */
 @keyframes fadeIn {
-    from {
-        opacity: 0;
-        transform: translateY(20px);
-    }
-    to {
-        opacity: 1;
-        transform: translateY(0);
-    }
+    from { opacity: 0; transform: translateY(20px); }
+    to { opacity: 1; transform: translateY(0); }
 }
 
 @keyframes slideIn {
@@ -1053,84 +338,64 @@ nav a:hover, nav a.active {
 }
 
 @media (max-width: 768px) {
-    .login-section {
-        margin: 20px;
-        padding: 15px;
+    .header-container {
+        flex-direction: row;
+        padding: 0 10px;
+        gap: 10px;
     }
-
-    .login-card {
-        padding: 20px;
-    }
-
     .logo-image {
-        width: 80px;
-        height: 80px;
+        width: 40px;
+        height: 40px;
     }
-
     .logo-text {
-        font-size: 1.5rem;
+        font-size: 1rem;
     }
-
     .logo-subtext {
+        display: none;
+    }
+    .admin-nav {
+        gap: 10px;
+    }
+    .welcome-message {
+        font-size: 0.8rem;
+    }
+    .logout-btn-header {
+        padding: 6px 10px;
         font-size: 0.8rem;
     }
 
-    .dashboard-section, .add-program-section, .edit-program-section, .delete-program-section, .add-user-section {
+    .admin-section { margin: 20px; padding: 15px; max-width: 100%; }
+    .admin-card { padding: 1.5rem; }
+    .form-group { flex: 1 1 100%; }
+    .admin-form input, .admin-form textarea { padding: 10px 15px; font-size: 0.9rem; }
+    .form-btn, .back-btn, .login-btn, .add-user-btn, .delete-btn, .cancel-btn { padding: 12px; font-size: 1rem; }
+    .delete-program-form { flex-direction: column; gap: 0.5rem; }
+
+    /* Media queries specific to login card */
+    .admin-section.user-form {
         margin: 20px;
         padding: 15px;
-        max-width: 100%;
     }
-    .dashboard-card, .add-program-card, .edit-program-card, .delete-program-card, .add-user-card {
-        padding: 1.5rem;
+    .admin-card .login-logo .logo-image {
+        width: 80px;
+        height: 80px;
     }
-    .form-group {
-        flex: 1 1 100%;
+    .admin-card .login-logo .logo-text {
+        font-size: 1.2rem;
     }
-    .add-program-form input, .add-program-form textarea,
-    .edit-program-form input, .edit-program-form textarea,
-    .add-user-form input {
-        padding: 10px 15px;
-        font-size: 0.9rem;
+    .admin-card .login-logo .logo-subtext {
+        font-size: 0.75rem;
     }
-    .add-program-btn, .edit-program-btn, .delete-btn, .back-btn, .cancel-btn, .add-user-btn, .logout-btn {
-        padding: 12px;
-        font-size: 1rem;
-    }
-    .programs-table th, .programs-table td {
-        padding: 10px;
-        font-size: 0.9rem;
-    }
-    .programs-table td {
-        font-size: 0.85rem;
+    .admin-card h2 {
+        font-size: 1.4rem;
     }
 }
 
 @media (max-width: 576px) {
-    .login-card h2 {
-        font-size: 1.5rem;
-    }
-
-    .login-form input {
-        padding: 10px 15px; /* Adjusted padding for smaller screens */
-        font-size: 0.9rem;
-    }
-
-    .login-btn {
-        padding: 10px;
-        font-size: 0.9rem;
-    }
-
-    .dashboard-card h2, .add-program-card h2, .edit-program-card h2, .delete-program-card h2, .add-user-card h2 {
+    .admin-card h2 {
         font-size: 1.5rem;
     }
     .form-group label {
         font-size: 0.9rem;
-    }
-    .programs-table {
-        font-size: 0.85rem;
-    }
-    .action-links a {
-        margin: 0 5px;
-        font-size: 0.85rem;
     }
 }
