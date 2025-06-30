@@ -5,7 +5,7 @@ if (session_status() === PHP_SESSION_NONE) {
 }
 
 // التحقق من تسجيل الدخول
-// متغير $public_page يستخدم في صفحة login.php لمنع إعادة التوجيه اللانهائية
+// متغير $is_login_page يستخدم في صفحة login.php لمنع إعادة التوجيه اللانهائية
 if (!isset($is_login_page) && !isset($_SESSION['admin_id'])) {
     header('Location: login.php');
     exit;
@@ -22,25 +22,23 @@ if (!isset($is_login_page) && !isset($_SESSION['admin_id'])) {
     <link rel="stylesheet" href="css/admin_style.css">
 </head>
 <body>
-    <?php if (!isset($hide_beta_banner) || !$hide_beta_banner): ?>
-        <div class="beta-banner">إطلاق تجريبي</div>
-    <?php endif; ?>
-    <header>
-        <div class="header-container">
-            <div class="logo">
-                <img src="https://i.postimg.cc/sxNCrL6d/logo-white-03.png" alt="شعار" class="logo-image">
-                <div>
-                    <div class="logo-text">لوحة التحكم</div>
-                    <div class="logo-subtext">دليل البرامج الصيفية</div>
+    <?php if (!isset($show_header) || $show_header !== false): // Show header by default, unless $show_header is explicitly false ?>
+        <header>
+            <div class="header-container">
+                <div class="logo">
+                    <img src="https://i.postimg.cc/sxNCrL6d/logo-white-03.png" alt="شعار" class="logo-image">
+                    <div>
+                        <div class="logo-text">لوحة التحكم</div>
+                        <div class="logo-subtext"><?php echo isset($page_title) ? htmlspecialchars($page_title) : 'دليل البرامج الصيفية'; ?></div>
+                    </div>
                 </div>
+                <nav class="admin-nav">
+                    <?php if (isset($_SESSION['username'])): ?>
+                        <span class="welcome-message">أهلاً بك، <?php echo htmlspecialchars($_SESSION['username']); ?></span>
+                        <a href="logout.php" class="logout-btn-header"><i class="fas fa-sign-out-alt"></i> تسجيل الخروج</a>
+                    <?php endif; ?>
+                </nav>
             </div>
-            <nav class="admin-nav">
-                <?php if (isset($_SESSION['username'])): ?>
-                    <span class="welcome-message">أهلاً بك، <?php echo htmlspecialchars($_SESSION['username']); ?></span>
-                    <a href="logout.php" class="logout-btn-header"><i class="fas fa-sign-out-alt"></i> تسجيل الخروج</a>
-                <?php else: ?>
-                    <!-- يمكن وضع رابط للعودة للصفحة الرئيسية هنا إذا أردت -->
-                <?php endif; ?>
-            </nav>
-        </div>
-    </header>
+        </header>
+    <?php endif; ?>
+

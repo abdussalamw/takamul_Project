@@ -24,20 +24,6 @@ body {
     align-items: center;
 }
 
-.beta-banner {
-    position: fixed;
-    top: 15px;
-    left: 15px;
-    background-color: var(--secondary);
-    color: white;
-    padding: 6px 12px;
-    font-size: 0.85rem;
-    font-weight: 700;
-    border-radius: 4px;
-    z-index: 1001;
-    box-shadow: 0 2px 5px rgba(0,0,0,0.15);
-}
-
 header {
     background: linear-gradient(120deg, var(--primary), #5c1d9c);
     color: white;
