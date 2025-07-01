@@ -20,7 +20,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
         $debug['db_connection'] = $pdo ? 'Connected' : 'Failed';
 
         // Prepare and execute SQL query
-        $stmt = $pdo->prepare("SELECT id, username, password FROM users WHERE LOWER(username) = LOWER(?)");
+        $stmt = $pdo->prepare("SELECT id, username, password, can_manage_users, can_add_programs, can_edit_programs, can_delete_programs FROM users WHERE LOWER(username) = LOWER(?)");
         $debug['query_prepared'] = $stmt ? true : false;
 
         $stmt->execute([$username]);
@@ -39,7 +39,15 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
 
             $_SESSION['admin_id'] = $user['id'];
             $_SESSION['username'] = $user['username'];
-            $debug['session_set'] = ['admin_id' => $user['id'], 'username' => $user['username']];
+            // Store permissions in the session
+            $_SESSION['permissions'] = [
+                'can_manage_users' => (bool)$user['can_manage_users'],
+                'can_add_programs' => (bool)$user['can_add_programs'],
+                'can_edit_programs' => (bool)$user['can_edit_programs'],
+                'can_delete_programs' => (bool)$user['can_delete_programs'],
+            ];
+
+            $debug['session_set'] = ['admin_id' => $user['id'], 'username' => $user['username'], 'permissions' => $_SESSION['permissions']];
             header('Location: dashboard.php');
             exit;
         } else {

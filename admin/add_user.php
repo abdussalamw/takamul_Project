@@ -9,6 +9,12 @@ error_reporting(E_ALL);
 
 $debug = [];
 
+if (!isset($_SESSION['admin_id']) || !isset($_SESSION['permissions']['can_manage_users']) || !$_SESSION['permissions']['can_manage_users']) {
+    // Redirect if not logged in or doesn't have permission
+    header('Location: dashboard.php?status=unauthorized');
+    exit;
+}
+
 if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     $username = trim($_POST['username']);
     $password = trim($_POST['password']);

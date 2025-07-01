@@ -7,41 +7,30 @@ ini_set('display_errors', 1);
 ini_set('display_startup_errors', 1);
 error_reporting(E_ALL);
 
-$debug = [];
-$error = null; // Initialize error variable
+$page_title_text = 'تعديل البرنامج';
+$error = null;
 
-if (!isset($_SESSION['admin_id'])) {
-    $debug['auth_error'] = 'User not authenticated';
-    header('Location: admin_login.php');
+// Security check: must be logged in and have permission to edit programs
+if (empty($_SESSION['admin_id']) || empty($_SESSION['permissions']['can_edit_programs'])) {
+    header('Location: dashboard.php?status=unauthorized');
     exit;
 }
 
-if (!isset($_GET['id'])) {
-    $debug['id_missing'] = 'Program ID not provided';
-    header('Location: dashboard.php');
-    exit;
-}
+// Validate program ID from GET parameter
+$program_id = filter_input(INPUT_GET, 'id', FILTER_VALIDATE_INT);
 
-$program_id = $_GET['id'];
 try {
     $stmt = $pdo->prepare("SELECT * FROM programs WHERE id = ?");
     $stmt->execute([$program_id]);
     $program = $stmt->fetch(PDO::FETCH_ASSOC);
-    $debug['program_fetched'] = !empty($program);
-    $debug['program_data'] = $program ? array_map(function($value) {
-        return is_string($value) && strlen($value) > 20 ? substr($value, 0, 20) . '...' : $value;
-    }, $program) : null;
 } catch (PDOException $e) {
     $error = "خطأ في قاعدة البيانات: " . $e->getMessage() . " 🚫";
-    $debug['error'] = 'Database error: ' . $e->getMessage();
 }
 
-if (!$program) {
-    $debug['program_not_found'] = 'Program ID: ' . $program_id;
-    header('Location: dashboard.php');
+if (!$program_id || !$program) {
+    header('Location: dashboard.php?status=not_found');
     exit;
 }
-
 // Generate CSRF token if not already set
 if (empty($_SESSION['csrf_token'])) {
     $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
@@ -49,78 +38,124 @@ if (empty($_SESSION['csrf_token'])) {
 $csrf_token = $_SESSION['csrf_token'];
 
 if ($_SERVER['REQUEST_METHOD'] == 'POST') {
-    $title = trim($_POST['title']);
-    $organizer = trim($_POST['organizer']);
-    $direction = trim($_POST['Direction']); // جلب قيمة Direction
-    $location = trim($_POST['location']);
-    $duration = trim($_POST['duration']);
-    $start_date = trim($_POST['start_date']);
-    $age_group = trim($_POST['age_group']);
-    $description = trim($_POST['description']);
-    $price = trim($_POST['price']);
-    $registration_link = trim($_POST['registration_link']);
-    $submitted_csrf_token = $_POST['csrf_token'] ?? '';
+    // 1. CSRF Token Validation
+    if (!isset($_POST['csrf_token']) || !hash_equals($_SESSION['csrf_token'], $_POST['csrf_token'])) {
+        $error = "فشل التحقق من الطلب (CSRF)، يرجى تحديث الصفحة والمحاولة مرة أخرى. 🚫";
+    } else {
+        $original_ad_link = $program['ad_link']; // Get old file path before processing
+        $new_ad_link_path = null;
 
-    $debug['input'] = [
-        'title' => $title,
-        'organizer' => $organizer,
-        'direction' => $direction,
-        'location' => $location,
-        'duration' => $duration,
-        'start_date' => $start_date,
-        'age_group' => $age_group,
-        'description' => substr($description, 0, 20) . '...',
-        'price' => $price,
-        'registration_link' => substr($registration_link, 0, 20) . (strlen($registration_link) > 20 ? '...' : ''),
-        'csrf_token_received' => !empty($submitted_csrf_token)
-    ];
-    
-    // Update program data in the array for immediate display after POST
-    $program['title'] = $title;
-    $program['organizer'] = $organizer;
-    $program['Direction'] = $direction;
-    $program['location'] = $location;
-    $program['duration'] = $duration;
-    $program['start_date'] = $start_date;
-    $program['age_group'] = $age_group;
-    $program['description'] = $description;
-    $program['price'] = $price;
-    $program['registration_link'] = $registration_link;
+        // 2. Handle File Upload if a new file is provided
+        if (isset($_FILES['ad_link']) && $_FILES['ad_link']['error'] === UPLOAD_ERR_OK) {
+            $upload_dir = '../uploads/';
+            if (!is_dir($upload_dir)) {
+                mkdir($upload_dir, 0755, true);
+            }
 
+            $file_tmp_path = $_FILES['ad_link']['tmp_name'];
+            $file_name = basename($_FILES['ad_link']['name']);
+            $file_size = $_FILES['ad_link']['size'];
+            $file_ext = strtolower(pathinfo($file_name, PATHINFO_EXTENSION));
 
-    try {
-        if (!hash_equals($_SESSION['csrf_token'], $submitted_csrf_token)) {
-            $error = "فشل التحقق من الطلب (CSRF) 🚫";
-            $debug['error'] = 'Invalid CSRF token';
-        } elseif (empty($title) || empty($organizer) || empty($location) || empty($direction) || empty($duration) || empty($start_date) || empty($age_group) || empty($description)) {
-            $error = "جميع الحقول مطلوبة باستثناء رابط التسجيل 🚫";
-            $debug['error'] = 'Missing required fields';
-        } elseif (!preg_match('/^\d{1,2}\/\d{1,2}\/\d{4}$/', $start_date)) {
-            $error = "تاريخ البدء غير صالح (يجب أن يكون DD/MM/YYYY) 🚫";
-            $debug['error'] = 'Invalid date range format: ' . $start_date;
-        } else {
-            $stmt = $pdo->prepare(
-                "UPDATE programs SET title = ?, organizer = ?, Direction = ?, location = ?, duration = ?, start_date = ?, age_group = ?, description = ?, price = ?, registration_link = ? WHERE id = ?"
-            );
-            $stmt->execute([
-                $title, $organizer, $direction, $location, $duration, $start_date, $age_group, $description, $price, $registration_link ?: NULL, $program_id
-            ]);
-            $debug['program_updated'] = true;
-            // Unset or regenerate CSRF token after successful submission
-            unset($_SESSION['csrf_token']);
-            header('Location: dashboard.php?status=updated');
-            exit;
+            $allowed_ext = ['jpg', 'jpeg', 'png', 'pdf'];
+            $max_file_size = 5 * 1024 * 1024; // 5 MB
+
+            if (!in_array($file_ext, $allowed_ext)) {
+                $error = "نوع الملف غير مسموح به. (المسموح: jpg, png, pdf) 🚫";
+            } elseif ($file_size > $max_file_size) {
+                $error = "حجم الملف كبير جداً. الحد الأقصى هو 5 ميجابايت. 🚫";
+            } else {
+                $new_file_name = uniqid('ad_', true) . '.' . $file_ext;
+                $dest_path = $upload_dir . $new_file_name;
+
+                if (move_uploaded_file($file_tmp_path, $dest_path)) {
+                    $new_ad_link_path = 'uploads/' . $new_file_name;
+                    $_POST['ad_link'] = $new_ad_link_path; // Set POST value to new path
+                } else {
+                    $error = "حدث خطأ أثناء نقل الملف المرفوع. 🚫";
+                }
+            }
         }
-    } catch (PDOException $e) {
-        $error = "خطأ في قاعدة البيانات: " . $e->getMessage() . " 🚫";
-        $debug['error'] = 'Database error: ' . $e->getMessage();
+
+        if (!isset($error)) {
+            // 3. Build Dynamic UPDATE Query
+            $update_parts = [];
+            $params = [];
+            
+            $stmt = $pdo->query("DESCRIBE programs");
+            $table_columns_info = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+            foreach ($table_columns_info as $column_info) {
+                $column_name = $column_info['Field'];
+                if ($column_name === 'id') continue;
+
+                $is_file_field = ($column_name === 'ad_link');
+                
+                // For file fields, we only update if a new file was uploaded
+                if ($is_file_field) {
+                    if ($new_ad_link_path) {
+                        $update_parts[] = "`$column_name` = ?";
+                        $params[] = $new_ad_link_path;
+                    }
+                } 
+                // For other fields, check if the submitted value is different from the current one
+                elseif (isset($_POST[$column_name])) {
+                    $submitted_value = trim($_POST[$column_name]);
+                    $current_value = $program[$column_name] ?? null;
+
+                    if ($submitted_value !== $current_value) {
+                        $update_parts[] = "`$column_name` = ?";
+                        if (empty($submitted_value) && $column_info['Null'] === 'YES') {
+                            $params[] = NULL;
+                        } else {
+                            $params[] = $submitted_value;
+                        }
+                    }
+                }
+            }
+
+            // 4. Execute Query if there are changes
+            if (!empty($update_parts)) {
+                $params[] = $program_id; // Add program ID for the WHERE clause
+                $sql = "UPDATE programs SET " . implode(', ', $update_parts) . " WHERE id = ?";
+                
+                try {
+                    $stmt = $pdo->prepare($sql);
+                    $stmt->execute($params);
+
+                    // 5. Delete old file if a new one was uploaded successfully
+                    if ($new_ad_link_path && !empty($original_ad_link) && file_exists('../' . $original_ad_link)) {
+                        unlink('../' . $original_ad_link);
+                    }
+
+                    // Unset or regenerate CSRF token after successful submission
+                    unset($_SESSION['csrf_token']);
+                    header('Location: dashboard.php?status=updated');
+                    exit;
+
+                } catch (PDOException $e) {
+                    $error = "خطأ في قاعدة البيانات: " . $e->getMessage() . " 🚫";
+                }
+            } else {
+                // No changes were submitted, just redirect
+                 header('Location: dashboard.php');
+                 exit;
+            }
+        } else {
+            // If there was an error, repopulate the form with the submitted data for correction
+            foreach ($_POST as $key => $value) {
+                if (array_key_exists($key, $program)) {
+                    $program[$key] = htmlspecialchars($value);
+                }
+            }
+        }
     }
 }
 ?>
 
 <html lang="ar" dir="rtl">
 <head>
-    <meta charset="UTF-8">
+    <meta charset="UTF-8">    
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>تعديل البرنامج ✏️</title>
     <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@300;400;500;700;800&display=swap" rel="stylesheet">
@@ -152,24 +187,10 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             align-items: center;
         }
 
-        .beta-banner {
-            position: fixed;
-            top: 15px;
-            left: 15px;
-            background-color: var(--secondary);
-            color: white;
-            padding: 6px 12px;
-            font-size: 0.85rem;
-            font-weight: 700;
-            border-radius: 4px;
-            z-index: 1001;
-            box-shadow: 0 2px 5px rgba(0,0,0,0.15);
-        }
-
         header {
             background: linear-gradient(120deg, var(--primary), #5c1d9c);
             color: white;
-            padding: 1rem 0;
+            padding: 0.5rem 0;
             box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
             position: sticky;
             top: 0;
@@ -189,24 +210,13 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
         .logo {
             display: flex;
             align-items: center;
-            gap: 60px;
+            gap: 15px;
         }
 
         .logo-image {
-            width: 140px;
-            height: 140px;
+            width: 60px;
+            height: 60px;
             object-fit: contain;
-        }
-
-        .logo-text {
-            font-size: 1.8rem;
-            font-weight: 800;
-            letter-spacing: -0.5px;
-        }
-
-        .logo-subtext {
-            font-size: 0.9rem;
-            opacity: 0.9;
         }
 
         nav ul {
@@ -224,12 +234,26 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             transition: all 0.3s ease;
             display: flex;
             align-items: center;
-            gap: 12px;
+            gap: 8px;
+        }        
+
+        .logo-text {
+            font-size: 1.5rem;
+            font-weight: 800;
         }
 
-        nav a i {
-            font-size: 1.8rem;
+        .page-title-header {
+            display: flex;
+            align-items: center;
+            font-size: 1.1rem;
+            font-weight: 700;
         }
+
+        .page-title-header i {
+            margin-left: 10px;
+            color: var(--accent);
+            font-size: 1.2rem;
+        }        
 
         nav a:hover, nav a.active {
             background: rgba(255, 255, 255, 0.15);
@@ -247,14 +271,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             background: white;
             border-radius: 20px;
             box-shadow: 0 8px 20px rgba(0, 0, 0, 0.1);
-            padding: 2.5rem;
-            text-align: center;
-            transform: scale(1);
-            transition: transform 0.3s ease;
-        }
-
-        .edit-program-card:hover {
-            transform: scale(1.02);
+            padding: 2.5rem;            
         }
 
         .edit-program-card h2 {
@@ -262,15 +279,15 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             font-size: 1.8rem;
             margin-bottom: 1.5rem;
             position: relative;
-            padding-bottom: 10px;
+            padding-bottom: 10px;            
+            text-align: right;
         }
 
         .edit-program-card h2::after {
             content: '';
             position: absolute;
             bottom: 0;
-            left: 50%;
-            transform: translateX(-50%);
+            right: 0;
             width: 60px;
             height: 3px;
             background: var(--secondary);
@@ -289,7 +306,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             border-radius: 8px;
             animation: slideIn 0.5s ease-out;
         }
-
+        
         .edit-program-form {
             display: flex;
             flex-wrap: wrap;
@@ -298,13 +315,18 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
         }
 
         .form-group {
-            flex: 1 1 45%;
-            text-align: right;
+            flex: 1 1 100%;
             min-width: 250px;
+            text-align: right;
+            position: relative;
         }
 
         .form-group.full-width {
             flex: 1 1 100%;
+        }
+
+        .form-group.half-width {
+            flex: 1 1 calc(50% - 0.75rem);
         }
 
         .form-group label {
@@ -322,7 +344,8 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
         }
 
         .edit-program-form input,
-        .edit-program-form textarea {
+        .edit-program-form textarea,
+        .edit-program-form input[type="file"] {
             width: 100%;
             padding: 12px 15px;
             border: 2px solid #e0e0e0;
@@ -333,8 +356,8 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             font-family: 'Tajawal', sans-serif;
         }
 
-        .edit-program-form input#start_date {
-            cursor: pointer;
+        .edit-program-form input[type="file"] {
+            padding: 8px;
         }
 
         .edit-program-form textarea {
@@ -360,7 +383,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             align-items: center;
             justify-content: center;
             gap: 8px;
-            cursor: pointer;
+            cursor: pointer;            
             transition: all 0.3s ease;
             margin: 0 auto;
         }
@@ -374,11 +397,8 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
         .back-btn {
             display: inline-flex;
             align-items: center;
-            gap: 8px;
-            background: var(--secondary);
-            color: white;
-            padding: 14px 20px;
-            border-radius: 10px;
+            gap: 8px;            
+            color: var(--primary);
             text-decoration: none;
             font-weight: 600;
             margin-top: 20px;
@@ -386,9 +406,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
         }
 
         .back-btn:hover {
-            background: #e55a5a;
-            transform: translateY(-2px);
-            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
+            text-decoration: underline;
         }
 
         @keyframes fadeIn {
@@ -401,303 +419,212 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             to { opacity: 1; transform: translateX(0); }
         }
 
-        @media (max-width: 768px) {
-            .header-container { flex-direction: column; padding: 0 10px; gap: 5px; }
-            header { padding: 5px 0; max-height: 20vh; overflow: hidden; display: flex; align-items: center; justify-content: center; }
-            .logo { gap: 8px; flex-shrink: 1; min-width: 0; align-items: center; }
-            .logo-image { width: 35px; height: 35px; }
-            .logo-text { font-size: 1rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-            .logo-subtext { font-size: 0.65rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-            nav { flex-shrink: 0; display: flex; align-items: center; justify-content: center; width: 100%; }
-            nav ul { flex-direction: row; flex-wrap: nowrap; align-items: center; padding: 0; margin: 0; gap: 5px; justify-content: center; }
-            nav a { flex-direction: column; align-items: center; text-align: center; padding: 5px 3px; gap: 2px; font-size: 0.7rem; }
-            nav a i { font-size: 1.1rem; }
-            .edit-program-section { margin: 20px; padding: 15px; max-width: 100%; }
-            .edit-program-card { padding: 1.5rem; }
-            .form-group { flex: 1 1 100%; }
-            .edit-program-form input, .edit-program-form textarea { padding: 10px 15px; font-size: 0.9rem; }
-            .edit-program-btn, .back-btn { padding: 12px; font-size: 1rem; }
+        .current-ad-preview {
+            margin-bottom: 10px;
+            padding: 10px;
+            background-color: #f8f9fa;
+            border: 1px solid #e9ecef;
+            border-radius: 8px;
         }
+        .current-ad-preview span {
+            font-weight: 500;
+            display: block;
+            margin-bottom: 5px;
+        }        
 
-        @media (max-width: 576px) {
-            nav ul { flex-wrap: wrap; justify-content: flex-start; }
-            .edit-program-card h2 { font-size: 1.5rem; }
-            .form-group label { font-size: 0.9rem; }
+        @media (max-width: 768px) {
+            .form-group.half-width {
+                flex: 1 1 100%;
+            }
         }
     </style>
 </head>
 <body>
-    <div class="beta-banner">إطلاق تجريبي</div>
     <header>
         <div class="header-container">
             <div class="logo">
                 <img src="https://i.postimg.cc/sxNCrL6d/logo-white-03.png" alt="شعار" class="logo-image">
-                <div>
-                    <div class="logo-text">دليل البرامج الصيفية</div>
-                    <div class="logo-subtext">للفتيات في مدينة الرياض 1447هـ</div>
-                </div>
+                <div class="logo-text">دليل البرامج الصيفية</div>
+            </div>
+            <div class="page-title-header">
+                <i class="fas fa-edit"></i>
+                <span><?php echo $page_title_text; ?></span>
             </div>
             <nav>
                 <ul>
-                    <li><a href="https://whatsapp.com/channel/0029VahQ1kvLI8YTd9OMQl35" target="_blank"><i class="fab fa-whatsapp"></i> قناة الواتساب</a></li>
-                    <li><a href="#" id="telegram-link-placeholder"><i class="fab fa-telegram"></i> قناة التليجرام</a></li>
-                    <li><a href="#" id="pdf-link-placeholder"><i class="fas fa-file-pdf"></i> تحميل الدليل (PDF)</a></li>
+                    <li><a href="dashboard.php"><i class="fas fa-tachometer-alt"></i> لوحة التحكم</a></li>
+                    <li><a href="logout.php"><i class="fas fa-sign-out-alt"></i> خروج</a></li>
                 </ul>
             </nav>
         </div>
     </header>
     <section class="edit-program-section">
         <div class="edit-program-card">
-            <h2>تعديل البرنامج ✏️</h2>
+            <h2><i class="fas fa-edit"></i> <?php echo $page_title_text; ?></h2>
             <?php if (isset($error)) echo "<p class='error-message'><i class='fas fa-exclamation-circle'></i> $error</p>"; ?>
-            <form method="POST" class="edit-program-form" id="edit-program-form">
+            <form method="POST" class="edit-program-form" id="edit-program-form" enctype="multipart/form-data">
                 <input type="hidden" name="csrf_token" value="<?php echo htmlspecialchars($csrf_token); ?>">
-                <div class="form-group">
-                    <label for="title"><i class="fas fa-heading"></i> عنوان البرنامج</label>
-                    <input type="text" id="title" name="title" value="<?php echo htmlspecialchars($program['title'] ?? ''); ?>" placeholder="أدخل عنوان البرنامج" required>
-                </div>
-                <div class="form-group">
-                    <label for="organizer"><i class="fas fa-user-tie"></i> اسم الجهة المنظمة</label>
-                    <input type="text" id="organizer" name="organizer" value="<?php echo htmlspecialchars($program['organizer'] ?? ''); ?>" placeholder="أدخل اسم الجهة المنظمة" required>
-                </div>
-                <div class="form-group">
-                    <label for="Direction"><i class="fas fa-map-signs"></i> المنطقة (Direction)</label>
-                    <input type="text" id="Direction" name="Direction" value="<?php echo htmlspecialchars($program['Direction'] ?? ''); ?>" placeholder="مثال: شمال الرياض، شرق الرياض" required>
-                </div>
-                <div class="form-group">
-                    <label for="start_date"><i class="fas fa-calendar"></i> تاريخ بدء البرنامج</label>
-                    <input type="text" id="start_date" name="start_date" value="<?php echo htmlspecialchars($program['start_date'] ?? ''); ?>" placeholder="اختر تاريخ بدء البرنامج (مثال: 01/01/1447)" required autocomplete="off">
-                </div>
-                <div class="form-group">
-                    <label for="location"><i class="fas fa-map-marker-alt"></i> مكان إقامة البرنامج</label>
-                    <input type="text" id="location" name="location" value="<?php echo htmlspecialchars($program['location'] ?? ''); ?>" placeholder="أدخل مكان إقامة البرنامج" required>
-                </div>
-                <div class="form-group">
-                    <label for="duration"><i class="fas fa-clock"></i> مدة البرنامج</label>
-                    <input type="text" id="duration" name="duration" value="<?php echo htmlspecialchars($program['duration'] ?? ''); ?>" placeholder="أدخل مدة البرنامج (مثال: أسبوع)" required>
-                </div>
-                <div class="form-group">
-                    <label for="age_group"><i class="fas fa-users"></i> الفئة العمرية</label>
-                    <input type="text" id="age_group" name="age_group" value="<?php echo htmlspecialchars($program['age_group'] ?? ''); ?>" placeholder="أدخل الفئة العمرية (مثال: 10-15)" required>
-                </div>
-                <div class="form-group">
-                    <label for="price"><i class="fas fa-money-bill"></i> رسوم البرنامج</label>
-                    <input type="text" id="price" name="price" value="<?php echo htmlspecialchars($program['price'] ?? ''); ?>" placeholder="أدخل رسوم البرنامج (مثال: 500 أو مجاني)" required>
-                </div>
-                <div class="form-group">
-                    <label for="registration_link"><i class="fas fa-link"></i> رابط التسجيل</label>
-                    <input type="text" id="registration_link" name="registration_link" value="<?php echo htmlspecialchars($program['registration_link'] ?? ''); ?>" placeholder="أدخل رابط التسجيل أو نص مثل 'عبر الواتساب'">
-                </div>
+                <?php
+                try {
+                    $field_translations = [
+                        'title'             => 'عنوان البرنامج',
+                        'organizer'         => 'الجهة المنظمة',
+                        'description'       => 'وصف البرنامج',
+                        'Direction'         => 'المنطقة/الاتجاه',
+                        'location'          => 'مكان البرنامج (الحي)',
+                        'start_date'        => 'تاريخ البدء',
+                        'end_date'          => 'تاريخ الانتهاء',
+                        'duration'          => 'المدة',
+                        'age_group'         => 'الفئة العمرية',
+                        'price'             => 'رسوم البرنامج',
+                        'registration_link' => 'رابط التسجيل',
+                        'ad_link'           => 'صورة الإعلان (صورة أو PDF)',
+                        'google_map'        => 'رابط الموقع على خرائط جوجل',
+                    ];
+
+                    $field_icons = [
+                        'title'             => 'fas fa-heading',
+                        'organizer'         => 'fas fa-user-tie',
+                        'description'       => 'fas fa-file-alt',
+                        'Direction'         => 'fas fa-map-signs',
+                        'location'          => 'fas fa-map-marker-alt',
+                        'start_date'        => 'fas fa-calendar-day',
+                        'end_date'          => 'fas fa-calendar-week',
+                        'duration'          => 'fas fa-clock',
+                        'age_group'         => 'fas fa-users',
+                        'price'             => 'fas fa-money-bill',
+                        'registration_link' => 'fas fa-link',
+                        'ad_link'           => 'fas fa-image',
+                        'google_map'        => 'fas fa-map-marked-alt',
+                    ];
+
+                    $stmt = $pdo->query("DESCRIBE programs");
+                    $columns = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+                    $column_data = array_column($columns, null, 'Field');
+                    $order = array_keys($column_data);
+                    $end_date_key = array_search('end_date', $order);
+                    if ($end_date_key !== false) {
+                        $end_date_item = array_splice($order, $end_date_key, 1);
+                        $start_date_key = array_search('start_date', $order);
+                        if ($start_date_key !== false) {
+                            array_splice($order, $start_date_key + 1, 0, $end_date_item);
+                        } else {
+                            $order[] = $end_date_item[0];
+                        }
+                    }
+                    $ordered_columns = [];
+                    foreach ($order as $field_name) {
+                        $ordered_columns[] = $column_data[$field_name];
+                    }
+
+                    foreach ($ordered_columns as $column) {
+                        $field_name = $column['Field'];
+                        if ($field_name == 'id') continue;
+
+                        $is_date_field = in_array($field_name, ['start_date', 'end_date']);
+                        $group_classes = 'form-group';
+                        if ($field_name === 'description') {
+                            $group_classes .= ' full-width';
+                        } else {
+                            $group_classes .= ' half-width';
+                        }
+
+                        $required = $column['Null'] == 'NO' ? 'required' : '';
+                        $label = $field_translations[$field_name] ?? ucfirst(str_replace('_', ' ', $field_name));
+                        $icon_class = $field_icons[$field_name] ?? 'fas fa-edit';
+                        $current_value = htmlspecialchars($program[$field_name] ?? '');
+                ?>
+                        <div class="<?php echo $group_classes; ?>">                            
+                            <label for="<?php echo $field_name; ?>"><i class="<?php echo $icon_class; ?>"></i> <?php echo $label; ?></label>
+                            <?php if ($field_name === 'ad_link'): ?>
+                                <?php if (!empty($current_value)): ?>
+                                    <div class="current-ad-preview">
+                                        <span>الإعلان الحالي:</span>
+                                        <?php
+                                        $file_ext = strtolower(pathinfo($current_value, PATHINFO_EXTENSION));
+                                        if (in_array($file_ext, ['jpg', 'jpeg', 'png'])):
+                                        ?>
+                                            <a href="../<?php echo $current_value; ?>" target="_blank"><img src="../<?php echo $current_value; ?>" alt="صورة الإعلان الحالي" style="max-width: 100px; max-height: 100px; border-radius: 5px; margin-top: 5px;"></a>
+                                        <?php else: ?>
+                                            <a href="../<?php echo $current_value; ?>" target="_blank">عرض الملف الحالي (<?php echo $file_ext; ?>)</a>
+                                        <?php endif; ?>
+                                    </div>
+                                <?php endif; ?>
+                                <input type="file" id="<?php echo $field_name; ?>" name="<?php echo $field_name; ?>" accept=".jpg, .jpeg, .png, .pdf">
+                                <small style="display: block; margin-top: 5px; color: #666;">اترك الحقل فارغاً للإبقاء على الإعلان الحالي.</small>
+                            <?php elseif ($column['Type'] == 'longtext' || $column['Type'] == 'text'): ?>
+                                <textarea id="<?php echo $field_name; ?>" name="<?php echo $field_name; ?>" placeholder="أدخل <?php echo $label; ?>" <?php echo $required; ?>><?php echo $current_value; ?></textarea>
+                            <?php else: ?>
+                                <input type="text" id="<?php echo $field_name; ?>" name="<?php echo $field_name; ?>" value="<?php echo $current_value; ?>" placeholder="أدخل <?php echo $label; ?>" <?php echo $required; ?> <?php if ($is_date_field) echo 'readonly style="cursor: pointer;"'; ?>>
+                            <?php endif; ?>
+                        </div>
+                <?php
+                    }
+                } catch (PDOException $e) {
+                    echo "<p class='error-message'><i class='fas fa-exclamation-circle'></i> خطأ في جلب معلومات الحقول: " . $e->getMessage() . "</p>";
+                }
+                ?>
                 <div class="form-group full-width">
-                    <label for="description"><i class="fas fa-file-alt"></i> وصف مختصر للبرنامج</label>
-                    <textarea id="description" name="description" placeholder="أدخل وصف مختصر للبرنامج" required><?php echo htmlspecialchars($program['description'] ?? ''); ?></textarea>
+                    <button type="submit" class="edit-program-btn"><i class="fas fa-save"></i> حفظ التغييرات</button>
                 </div>
-                <button type="submit" class="edit-program-btn"><i class="fas fa-save"></i> حفظ التغييرات</button>
             </form>
-            <a href="dashboard.php" class="back-btn"><i class="fas fa-arrow-right"></i> رجوع</a>
+            <a href="dashboard.php" class="back-btn"><i class="fas fa-arrow-right"></i> العودة إلى لوحة التحكم</a>
         </div>
     </section>
 
     <script>
-        // ننتظر حتى يتم تحميل الصفحة بالكامل قبل تشغيل الكود
-        document.addEventListener('DOMContentLoaded', function() {
-            
-            const debugInfo = <?php echo json_encode($debug); ?>;
-            console.group('Edit Program Debug Info');
-            console.log('Debug Data:', debugInfo);
-            console.groupEnd();
+    document.addEventListener('DOMContentLoaded', function() {
+        let activeCalendarInput = null;
+        const calendarElement = createCalendarElement();
+        document.body.appendChild(calendarElement);
 
-            // أسماء الشهور الهجرية
-            const hijriMonths = [
-                'محرم', 'صفر', 'ربيع الأول', 'ربيع الثاني', 'جمادى الأولى', 'جمادى الثانية',
-                'رجب', 'شعبان', 'رمضان', 'شوال', 'ذو القعدة', 'ذو الحجة'
-            ];
+        const hijriMonths = ['محرم', 'صفر', 'ربيع الأول', 'ربيع الثاني', 'جمادى الأولى', 'جمادى الثانية', 'رجب', 'شعبان', 'رمضان', 'شوال', 'ذو القعدة', 'ذو الحجة'];
+        const hijriDays = ['الأحد', 'الإثنين', 'الثلاثاء', 'الأربعاء', 'الخميس', 'الجمعة', 'السبت'];
+        
+        const hijriYearStartDay = {
+            1446: 0, // 1 Muharram 1446 is a Sunday
+            1447: 4, // 1 Muharram 1447 is a Thursday
+            1448: 2  // 1 Muharram 1448 is a Tuesday
+        };
+        const hijriMonthLengths = [30, 29, 30, 29, 30, 29, 30, 29, 30, 29, 30, 29];
 
-            // أسماء الأيام
-            const hijriDays = ['الأحد', 'الإثنين', 'الثلاثاء', 'الأربعاء', 'الخميس', 'الجمعة', 'السبت'];
+        function createCalendarElement() {
+            const calendar = document.createElement('div');
+            calendar.className = 'hijri-calendar';
+            calendar.style.cssText = `
+                position: absolute;
+                background: white;
+                border: 1px solid #ddd;
+                border-radius: 15px;
+                box-shadow: 0 10px 30px rgba(0,0,0,0.15);
+                z-index: 1002;
+                padding: 15px;
+                width: 320px;
+                display: none;
+                font-family: 'Tajawal', sans-serif;
+                opacity: 0;
+                transform: translateY(10px);
+                transition: opacity 0.3s ease, transform 0.3s ease;
+            `;
+            return calendar;
+        }
 
-            // إنشاء التقويم الهجري
-            function createHijriCalendar() {
-                const calendar = document.createElement('div');
-                calendar.className = 'hijri-calendar';
-                calendar.style.cssText = `
-                    position: absolute;
-                    top: 100%;
-                    right: 0;
-                    background: white;
-                    border: 2px solid var(--primary);
-                    border-radius: 15px;
-                    box-shadow: 0 10px 30px rgba(0,0,0,0.15);
-                    z-index: 1002; /* تم رفع الطبقة لتظهر فوق كل العناصر الأخرى */
-                    padding: 15px;
-                    min-width: 300px;
-                    display: none;
-                    font-family: 'Tajawal', sans-serif;
-                `;
+        function renderCalendar(year, month, selectedDay = null) {
+            calendarElement.innerHTML = `
+                <div class="calendar-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                    <button type="button" class="nav-btn" data-action="prev-month">‹</button>
+                    <div style="display: flex; gap: 5px; font-weight: bold;">
+                        <span id="current-month">${hijriMonths[month-1]}</span>
+                        <span id="current-year">${year}هـ</span>
+                    </div>
+                    <button type="button" class="nav-btn" data-action="next-month">›</button>
+                </div>
+                <div class="calendar-grid-header" style="display: grid; grid-template-columns: repeat(7, 1fr); gap: 5px; margin-bottom: 10px;">
+                    ${hijriDays.map(day => `<div style="text-align: center; font-weight: bold; color: var(--primary); padding: 6px; font-size: 0.8rem;">${day.substring(0,3)}</div>`).join('')}
+                </div>
+                <div class="calendar-grid-days" style="display: grid; grid-template-columns: repeat(7, 1fr); gap: 5px;"></div>
+            `;
 
-                let displayYear = 1447; // Initialize to 1447 AH
-                let displayMonth = 1;   // 1-based (Muharram)
-
-                // Parse current value if exists
-                const currentValue = <?php echo json_encode($program['start_date'] ?? null); ?>;
-                if (currentValue && /^\d{1,2}\/\d{1,2}\/\d{4}$/.test(currentValue)) {
-                    const [day, month, year] = currentValue.split('/').map(Number);
-                    displayYear = year;
-                    displayMonth = month;
-                }
-
-                function updateCalendar() {
-                    calendar.innerHTML = `
-                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
-                            <button type="button" class="nav-btn" data-action="prev-year">«</button>
-                            <button type="button" class="nav-btn" data-action="prev-month">‹</button>
-                            <div style="display: flex; gap: 5px;">
-                                <select id="hijri-month-select" class="hijri-select"></select>
-                                <select id="hijri-year-select" class="hijri-select"></select>
-                            </div>
-                            <button type="button" class="nav-btn" data-action="next-month">›</button>
-                            <button type="button" class="nav-btn" data-action="next-year">»</button>
-                        </div>
-                        <div style="display: grid; grid-template-columns: repeat(7, 1fr); gap: 5px; margin-bottom: 15px;">
-                            ${hijriDays.map(day => `<div style="text-align: center; font-weight: bold; color: var(--primary); padding: 6px; font-size: 0.8rem;">${day}</div>`).join('')}
-                        </div>
-                        <div id="calendar-days" style="display: grid; grid-template-columns: repeat(7, 1fr); gap: 3px;">
-                        </div>
-                        <div style="text-align: center; margin-top: 15px;">
-                            <button type="button" id="close-calendar" style="background: var(--secondary); color: white; border: none; padding: 7px 18px; border-radius: 8px; cursor: pointer; font-size: 0.9rem;">إغلاق</button>
-                        </div>
-                    `;
-
-                    const monthSelect = calendar.querySelector('#hijri-month-select');
-                    const yearSelect = calendar.querySelector('#hijri-year-select');
-
-                    hijriMonths.forEach((monthName, index) => {
-                        const option = document.createElement('option');
-                        option.value = index + 1;
-                        option.textContent = monthName;
-                        if ((index + 1) === displayMonth) option.selected = true;
-                        monthSelect.appendChild(option);
-                    });
-                    monthSelect.addEventListener('change', (e) => {
-                        displayMonth = parseInt(e.target.value);
-                        updateCalendar();
-                    });
-
-                    for (let y = 1446; y <= 1448; y++) {
-                        const option = document.createElement('option');
-                        option.value = y;
-                        option.textContent = y + 'هـ';
-                        if (y === displayYear) option.selected = true;
-                        yearSelect.appendChild(option);
-                    }
-                    yearSelect.addEventListener('change', (e) => {
-                        displayYear = parseInt(e.target.value);
-                        updateCalendar();
-                    });
-
-                    const daysContainer = calendar.querySelector('#calendar-days');
-                    daysContainer.innerHTML = ''; // Clear previous days
-                    const daysInMonth = (displayMonth === 12 || displayMonth === 11) ? 29 : 30;
-                    
-                    const referenceDate = new Date(2025, 5, 19); // 1 Muharram 1447 ≈ 19 June 2025
-                    const daysSinceReference = (displayYear - 1447) * 354 + (displayMonth - 1) * 29.5;
-                    const firstDayDate = new Date(referenceDate.getTime() + daysSinceReference * 24 * 60 * 60 * 1000);
-                    const startDay = firstDayDate.getDay();
-
-                    for (let i = 0; i < startDay; i++) {
-                        daysContainer.innerHTML += '<div></div>';
-                    }
-
-                    for (let day = 1; day <= daysInMonth; day++) {
-                        const dayElement = document.createElement('div');
-                        dayElement.style.cssText = `
-                            text-align: center; padding: 8px 4px; cursor: pointer; border-radius: 8px;
-                            transition: all 0.2s ease; font-weight: 500; font-size: 0.9rem;
-                        `;
-                        dayElement.textContent = day;
-                        dayElement.addEventListener('click', () => selectDate(displayYear, displayMonth, day));
-                        dayElement.addEventListener('mouseover', () => {
-                            dayElement.style.backgroundColor = 'var(--primary)';
-                            dayElement.style.color = 'white';
-                        });
-                        dayElement.addEventListener('mouseout', () => {
-                            dayElement.style.backgroundColor = '';
-                            dayElement.style.color = '';
-                        });
-                        daysContainer.appendChild(dayElement);
-                    }
-
-                    calendar.querySelectorAll('.nav-btn').forEach(btn => {
-                        btn.style.cssText = `
-                            background: var(--primary); color: white; border: none; padding: 6px 10px;
-                            border-radius: 8px; cursor: pointer; font-size: 1rem; transition: all 0.2s ease;
-                        `;
-                        btn.addEventListener('mouseover', () => btn.style.backgroundColor = '#7a1fc2');
-                        btn.addEventListener('mouseout', () => btn.style.backgroundColor = 'var(--primary)');
-                        btn.addEventListener('click', (e) => {
-                            const action = e.target.dataset.action;
-                            switch(action) {
-                                case 'prev-year': displayYear--; break;
-                                case 'next-year': displayYear++; break;
-                                case 'prev-month':
-                                    displayMonth--;
-                                    if (displayMonth < 1) { displayMonth = 12; displayYear--; }
-                                    break;
-                                case 'next-month':
-                                    displayMonth++;
-                                    if (displayMonth > 12) { displayMonth = 1; displayYear++; }
-                                    break;
-                            }
-                            updateCalendar();
-                        });
-                    });
-
-                    calendar.querySelector('#close-calendar').addEventListener('click', () => {
-                        calendar.style.display = 'none';
-                    });
-
-                    calendar.querySelectorAll('.hijri-select').forEach(sel => {
-                        sel.style.cssText = `
-                            padding: 5px 8px; border: 1px solid var(--primary); border-radius: 5px;
-                            font-family: 'Tajawal', sans-serif; font-size: 0.9rem;`;
-                    });
-                }
-
-                function selectDate(year, month, day) {
-                    const hijriDateStr = `${String(day).padStart(2, '0')}/${String(month).padStart(2, '0')}/${year}`;
-                    document.getElementById('start_date').value = hijriDateStr;
-                    calendar.style.display = 'none';
-                }
-
-                updateCalendar();
-                return calendar;
-            }
-
-            const dateInput = document.getElementById('start_date');
-            
-            if (dateInput) {
-                const dateContainer = dateInput.parentElement;
-                
-                // التأكد من أن الحاوية لها موضع نسبي
-                if (window.getComputedStyle(dateContainer).position === 'static') {
-                    dateContainer.style.position = 'relative';
-                }
-                
-                const hijriCalendar = createHijriCalendar();
-                dateContainer.appendChild(hijriCalendar);
-
-                dateInput.addEventListener('click', (e) => {
-                    e.preventDefault();
-                    hijriCalendar.style.display = hijriCalendar.style.display === 'block' ? 'none' : 'block';
-                });
-
-                document.addEventListener('click', (e) => {
-                    if (!dateContainer.contains(e.target)) {
-                        hijriCalendar.style.display = 'none';
-                    }
-                });
-            }
-        });
-    </script>
-</body>
-</html>
+            const daysContainer = calendarElement.querySelector('.calendar-grid-days');
+            const daysInMonth = hijriMonthLengths[month - 1] + ((month === 12 && (year === 1446 || year === 1

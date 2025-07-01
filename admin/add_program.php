@@ -8,6 +8,7 @@ ini_set('display_startup_errors', 1);
 error_reporting(E_ALL);
 
 $debug = [];
+$page_title_text = 'إضافة برنامج جديد';
 $error = null; // Initialize error variable
 
 if (!isset($_SESSION['admin_id'])) {
@@ -16,61 +17,120 @@ if (!isset($_SESSION['admin_id'])) {
     exit;
 }
 
+// Security check: must have permission to add programs
+if (!isset($_SESSION['permissions']['can_add_programs']) || !$_SESSION['permissions']['can_add_programs']) {
+    header('Location: dashboard.php?status=unauthorized');
+    exit;
+}
+
+// Generate CSRF token if not already set
+if (empty($_SESSION['csrf_token'])) {
+    $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
+}
+$csrf_token = $_SESSION['csrf_token'];
+
 if ($_SERVER['REQUEST_METHOD'] == 'POST') {
-    $title = trim($_POST['title']);
-    $organizer = trim($_POST['organizer']);
-    $direction = trim($_POST['Direction']);
-    $location = trim($_POST['location']);
-    $duration = trim($_POST['duration']);
-    $start_date = trim($_POST['start_date']);
-    $age_group = trim($_POST['age_group']);
-    $description = trim($_POST['description']);
-    $price = trim($_POST['price']);
-    $registration_link = trim($_POST['registration_link']);
-
-    $debug['input'] = [
-        'title' => $title,
-        'organizer' => $organizer,
-        'direction' => $direction,
-        'location' => $location,
-        'duration' => $duration,
-        'start_date' => $start_date,
-        'age_group' => $age_group,
-        'description' => substr($description, 0, 20) . '...',
-        'price' => $price,
-        'registration_link' => substr($registration_link, 0, 20) . (strlen($registration_link) > 20 ? '...' : '')
-    ];
-
-    try {
-        if (empty($title) || empty($organizer) || empty($direction) || empty($location) || empty($duration) || empty($start_date) || empty($age_group) || empty($description)) {
-            $error = "جميع الحقول مطلوبة باستثناء رابط التسجيل 🚫";
-            $debug['error'] = 'Missing required fields';
-        } elseif (!preg_match('/^\d{1,2}\/\d{1,2}\/\d{4}$/', $start_date)) {
-            $error = "تاريخ البدء غير صالح (يجب أن يكون DD/MM/YYYY) 🚫";
-            $debug['error'] = 'Invalid start date format: ' . $start_date;
-        } else {
-            // جلب أسماء الأعمدة من الجدول
-            $stmt = $pdo->query("DESCRIBE programs");
-            $columns = $stmt->fetchAll(PDO::FETCH_COLUMN);
-            
-            // إعداد استعلام الإدراج ديناميكيًا
-            $placeholders = implode(', ', array_fill(0, count($columns) - 1, '?')); // تجاهل 'id'
-            $sql = "INSERT INTO programs (" . implode(', ', array_slice($columns, 1)) . ") VALUES (" . $placeholders . ")";
-            $stmt = $pdo->prepare($sql);
-            
-            // إعداد قيم للمعلمات
-            $values = [$title, $organizer, $direction, $location, $duration, $start_date, $age_group, $description, $price, $registration_link ?: NULL];
-            
-            // تنفيذ الاستعلام
-            $stmt->execute($values);
-            $debug['program_added'] = true;
-            $debug['program_id'] = $pdo->lastInsertId();
-            header('Location: dashboard.php?status=added');
-            exit;
+    // --- التعامل مع رفع الملفات أولاً ---
+    if (isset($_FILES['ad_link_file']) && $_FILES['ad_link_file']['error'] === UPLOAD_ERR_OK) {
+        $upload_dir = '../uploads/';
+        if (!is_dir($upload_dir)) {
+            // Use more secure permissions
+            mkdir($upload_dir, 0755, true);
         }
-    } catch (PDOException $e) {
-        $error = "خطأ في قاعدة البيانات: " . $e->getMessage() . " 🚫";
-        $debug['error'] = 'Database error: ' . $e->getMessage();
+
+        $file_tmp_path = $_FILES['ad_link_file']['tmp_name'];
+        $file_name = basename($_FILES['ad_link_file']['name']);
+        $file_size = $_FILES['ad_link_file']['size'];
+        $file_ext = strtolower(pathinfo($file_name, PATHINFO_EXTENSION));
+
+        $allowed_ext = ['jpg', 'jpeg', 'png', 'pdf'];
+        $max_file_size = 5 * 1024 * 1024; // 5 MB
+
+        if (in_array($file_ext, $allowed_ext)) {
+            if ($file_size <= $max_file_size) {
+                // إنشاء اسم فريد للملف لمنع الكتابة فوق الملفات الموجودة
+                $new_file_name = uniqid('ad_', true) . '.' . $file_ext;
+                $dest_path = $upload_dir . $new_file_name;
+
+                if (move_uploaded_file($file_tmp_path, $dest_path)) {
+                    // تخزين المسار النسبي في متغير POST ليتم حفظه في قاعدة البيانات
+                    $_POST['ad_link_file'] = 'uploads/' . $new_file_name;
+                } else {
+                    $error = "حدث خطأ أثناء نقل الملف المرفوع. 🚫";
+                }
+            } else {
+                $error = "حجم الملف كبير جداً. الحد الأقصى هو 5 ميجابايت. 🚫";
+            }
+        } else {
+            $error = "نوع الملف غير مسموح به. (المسموح: jpg, png, pdf) 🚫";
+        }
+    }
+
+    // CSRF Token Validation
+    if (!isset($_POST['csrf_token']) || !hash_equals($_SESSION['csrf_token'], $submitted_csrf_token)) {
+        $error = "فشل التحقق من الطلب (CSRF)، يرجى تحديث الصفحة والمحاولة مرة أخرى. 🚫";
+        // Regenerate token on failure
+        $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
+    }
+
+
+    $data_to_insert = [];
+    $db_columns = [];
+    $placeholders = [];
+    $params = [];
+
+    // جلب الأعمدة من قاعدة البيانات لضمان معالجة الحقول الصحيحة فقط
+    $stmt = $pdo->query("DESCRIBE programs");
+    $table_columns_info = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+    foreach ($table_columns_info as $column_info) {
+        $column_name = $column_info['Field'];
+        if ($column_name === 'id') {
+            continue;
+        }
+
+        // التحقق مما إذا تم إرسال البيانات لهذا العمود
+        if (isset($_POST[$column_name])) {
+            $db_columns[] = "`$column_name`";
+            $placeholders[] = '?';
+            // لا نستخدم trim على مسار الملف
+            $value = ($column_name === 'ad_link_file') ? $_POST[$column_name] : trim($_POST[$column_name]);
+
+            // التعامل مع الحقول الاختيارية الفارغة مثل رابط التسجيل
+            if (empty($value) && $column_info['Null'] === 'YES') {
+                $params[] = NULL;
+            } else {
+                $params[] = $value;
+            }
+        }
+    }
+
+    // استمرار العملية فقط إذا لم يكن هناك خطأ في رفع الملف
+    if (!isset($error)) {
+        // التحقق من صحة البيانات الأساسية
+        if (empty($_POST['title']) || empty($_POST['start_date'])) {
+            $error = "حقل العنوان وتاريخ البدء مطلوبان على الأقل 🚫";
+            $debug['error'] = 'Missing required fields: title or start_date';
+        } elseif (isset($_POST['start_date']) && !preg_match('/^\d{1,2}\/\d{1,2}\/\d{4}$/', $_POST['start_date'])) {
+            $error = "تاريخ البدء غير صالح (يجب أن يكون DD/MM/YYYY) 🚫";
+            $debug['error'] = 'Invalid start date format: ' . $_POST['start_date'];
+        } else {
+            try {
+                $sql = "INSERT INTO programs (" . implode(', ', $db_columns) . ") VALUES (" . implode(', ', $placeholders) . ")";
+                $stmt = $pdo->prepare($sql);
+                $stmt->execute($params);
+
+                $debug['program_added'] = true;
+                $debug['program_id'] = $pdo->lastInsertId();
+                // Unset token on success to prevent reuse
+                unset($_SESSION['csrf_token']);
+                header('Location: dashboard.php?status=added');
+                exit;
+            } catch (PDOException $e) {
+                $error = "خطأ في قاعدة البيانات: " . $e->getMessage() . " 🚫";
+                $debug['error'] = 'Database error: ' . $e->getMessage();
+            }
+        }
     }
 }
 ?>
@@ -79,7 +139,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>إضافة برنامج جديد ➕</title>
+    <title><?php echo $page_title_text; ?> ➕</title>
     <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@300;400;500;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
@@ -126,7 +186,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
         header {
             background: linear-gradient(120deg, var(--primary), #5c1d9c);
             color: white;
-            padding: 1rem 0;
+            padding: 0.5rem 0;
             box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
             position: sticky;
             top: 0;
@@ -146,23 +206,23 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
         .logo {
             display: flex;
             align-items: center;
-            gap: 60px;
+            gap: 15px;
         }
 
         .logo-image {
-            width: 140px;
-            height: 140px;
+            width: 60px;
+            height: 60px;
             object-fit: contain;
         }
 
         .logo-text {
-            font-size: 1.8rem;
+            font-size: 1.5rem;
             font-weight: 800;
             letter-spacing: -0.5px;
         }
 
         .logo-subtext {
-            font-size: 0.9rem;
+            font-size: 0.8rem;
             opacity: 0.9;
         }
 
@@ -190,6 +250,28 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
 
         nav a:hover, nav a.active {
             background: rgba(255, 255, 255, 0.15);
+        }
+
+        .welcome-message {
+            color: white;
+            display: flex;
+            align-items: center;
+            font-weight: 500;
+            padding: 10px 20px;
+        }
+
+        .page-title-header {
+            color: white;
+            display: flex;
+            align-items: center;
+            font-size: 1.1rem;
+            font-weight: 700;
+        }
+
+        .page-title-header i {
+            margin-left: 10px; /* مسافة بين الأيقونة والنص */
+            color: var(--accent);
+            font-size: 1.2rem;
         }
 
         .add-program-section {
@@ -242,11 +324,11 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             font-size: 0.9rem;
             margin-bottom: 1rem;
             padding: 10px;
-            background: #fff0f0;
+            background: #fff0f0; /* Light red background */
             border-radius: 8px;
             animation: slideIn 0.5s ease-out;
         }
-
+        
         .add-program-form {
             display: flex;
             flex-wrap: wrap;
@@ -255,7 +337,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
         }
 
         .form-group {
-            flex: 1 1 45%;
+            flex: 1 1 100%; /* Default to full width */
             text-align: right;
             min-width: 250px;
             position: relative;
@@ -263,6 +345,11 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
 
         .form-group.full-width {
             flex: 1 1 100%;
+        }
+
+        /* New class for half-width fields */
+        .form-group.half-width {
+            flex: 1 1 calc(50% - 0.75rem); /* 50% width minus half the gap */
         }
 
         .form-group label {
@@ -475,7 +562,6 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     </style>
 </head>
 <body>
-    <div class="beta-banner">إطلاق تجريبي</div>
     <header>
         <div class="header-container">
             <div class="logo">
@@ -485,11 +571,20 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                     <div class="logo-subtext">للفتيات في مدينة الرياض 1447هـ</div>
                 </div>
             </div>
+            <div class="page-title-header">
+                <i class="fas fa-plus-circle"></i>
+                <span><?php echo htmlspecialchars($page_title_text); ?></span>
+            </div>
             <nav>
                 <ul>
-                    <li><a href="https://whatsapp.com/channel/0029VahQ1kvLI8YTd9OMQl35" target="_blank"><i class="fab fa-whatsapp"></i> قناة الواتساب</a></li>
-                    <li><a href="#" id="telegram-link-placeholder"><i class="fab fa-telegram"></i> قناة التليجرام</a></li>
-                    <li><a href="#" id="pdf-link-placeholder"><i class="fas fa-file-pdf"></i> تحميل الدليل (PDF)</a></li>
+                    <?php if (isset($_SESSION['username'])): ?>
+                        <li class="welcome-message">
+                            <span>أهلاً بك, <?php echo htmlspecialchars($_SESSION['username']); ?></span>
+                        </li>
+                        <li>
+                            <a href="logout.php" title="تسجيل الخروج"><i class="fas fa-sign-out-alt"></i> تسجيل الخروج</a>
+                        </li>
+                    <?php endif; ?>
                 </ul>
             </nav>
         </div>
@@ -498,29 +593,100 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
         <div class="add-program-card">
             <h2>إضافة برنامج جديد ➕</h2>
             <?php if (isset($error)) echo "<p class='error-message'><i class='fas fa-exclamation-circle'></i> $error</p>"; ?>
-            <form method="POST" class="add-program-form" id="add-program-form">
+            <form method="POST" class="add-program-form" id="add-program-form" enctype="multipart/form-data">
+                <input type="hidden" name="csrf_token" value="<?php echo htmlspecialchars($csrf_token); ?>">
                 <?php
                 try {
+                    // مصفوفة لترجمة أسماء الحقول إلى العربية
+                    // هام جداً: يجب أن تكون هذه الأسماء (المفاتيح) مطابقة تماماً لأسماء الأعمدة في جدول `programs` في قاعدة البيانات
+                    $field_translations = [
+                        'title'             => 'عنوان البرنامج',
+                        'organizer'         => 'الجهة المنظمة',
+                        'description'       => 'وصف البرنامج',
+                        'Direction'         => 'المنطقة/الاتجاه',
+                        'location'          => 'مكان البرنامج (الحي)',
+                        'start_date'        => 'تاريخ البدء',
+                        'end_date'          => 'تاريخ الانتهاء',
+                        'duration'          => 'المدة',
+                        'age_group'         => 'الفئة العمرية',
+                        'price'             => 'رسوم البرنامج',
+                        'registration_link' => 'رابط التسجيل',
+                        'ad_link'      => 'صورة الإعلان (صورة أو PDF)',
+                        'google_map'  => 'رابط الموقع على خرائط جوجل',
+                    ];
+
+                    // مصفوفة لربط الحقول بالأيقونات المناسبة
+                    // يجب أن تكون الأسماء هنا مطابقة أيضاً
+                    $field_icons = [
+                        'title'             => 'fas fa-heading',
+                        'organizer'         => 'fas fa-user-tie',
+                        'description'       => 'fas fa-file-alt',
+                        'Direction'         => 'fas fa-map-signs',
+                        'location'          => 'fas fa-map-marker-alt',
+                        'start_date'        => 'fas fa-calendar-day',
+                        'end_date'          => 'fas fa-calendar-week',
+                        'duration'          => 'fas fa-clock',
+                        'age_group'         => 'fas fa-users',
+                        'price'             => 'fas fa-money-bill',
+                        'registration_link' => 'fas fa-link',
+                        'ad_link_file'      => 'fas fa-image',
+                        'google_maps_link'  => 'fas fa-map-marked-alt',
+                    ];
+
                     $stmt = $pdo->query("DESCRIBE programs");
                     $columns = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
-                    foreach ($columns as $column) {
-                        $field = $column['Field'];
-                        if ($field == 'id') continue; // تخطي حقل المعرف
+                    // --- Reorder columns to place end_date after start_date ---
+                    $column_data = array_column($columns, null, 'Field');
+                    $order = array_keys($column_data);
+
+                    $end_date_key = array_search('end_date', $order);
+                    if ($end_date_key !== false) {
+                        // Remove end_date from its current position
+                        $end_date_item = array_splice($order, $end_date_key, 1);
+                        
+                        // Find start_date's new position and insert end_date after it
+                        $start_date_key = array_search('start_date', $order);
+                        if ($start_date_key !== false) {
+                            array_splice($order, $start_date_key + 1, 0, $end_date_item);
+                        } else {
+                            // if start_date is not found for some reason, put end_date back at the end
+                            $order[] = $end_date_item[0];
+                        }
+                    }
+
+                    $ordered_columns = [];
+                    foreach ($order as $field_name) {
+                        $ordered_columns[] = $column_data[$field_name];
+                    }
+                    // --- End of reordering ---
+
+                    foreach ($ordered_columns as $column) {
+                        $field_name = $column['Field'];
+                        if ($field_name == 'id') continue; // تخطي حقل المعرف
+
+                        $is_date_field = in_array($field_name, ['start_date', 'end_date']);
+
+                        // تحديد أصناف CSS للحقل
+                        $group_classes = 'form-group';
+                        if ($field_name === 'description') {
+                            $group_classes .= ' full-width';
+                        } else {
+                            $group_classes .= ' half-width';
+                        }
 
                         $required = $column['Null'] == 'NO' ? 'required' : '';
-                        $label = ucfirst(str_replace('_', ' ', $field)); // تسمية الحقل
+                        $label = $field_translations[$field_name] ?? ucfirst(str_replace('_', ' ', $field_name));
+                        $icon_class = $field_icons[$field_name] ?? 'fas fa-edit';
                 ?>
-                        <div class="form-group">
-                            <label for="<?php echo $field; ?>"><i class="fas fa-edit"></i> <?php echo $label; ?></label>
-                            <?php if ($column['Type'] == 'text'): ?>
-                                <input type="text" id="<?php echo $field; ?>" name="<?php echo $field; ?>" placeholder="أدخل <?php echo $label; ?>" <?php echo $required; ?>>
-                            <?php elseif (strpos($column['Type'], 'varchar') !== false): ?>
-                                <input type="text" id="<?php echo $field; ?>" name="<?php echo $field; ?>" placeholder="أدخل <?php echo $label; ?>" <?php echo $required; ?>>
-                            <?php elseif ($column['Type'] == 'longtext'): ?>
-                                <textarea id="<?php echo $field; ?>" name="<?php echo $field; ?>" placeholder="أدخل <?php echo $label; ?>" <?php echo $required; ?>></textarea>
+                        <div class="<?php echo $group_classes; ?>">
+                            <label for="<?php echo $field_name; ?>"><i class="<?php echo $icon_class; ?>"></i> <?php echo $label; ?></label>
+                            <?php if ($field_name === 'ad_link_file'): ?>
+                                <input type="file" id="<?php echo $field_name; ?>" name="<?php echo $field_name; ?>" accept=".jpg, .jpeg, .png, .pdf">
+                            <?php elseif ($column['Type'] == 'longtext' || $column['Type'] == 'text'): ?>
+                                <textarea id="<?php echo $field_name; ?>" name="<?php echo $field_name; ?>" placeholder="أدخل <?php echo $label; ?>" <?php echo $required; ?>></textarea>
                             <?php else: ?>
-                                <input type="text" id="<?php echo $field; ?>" name="<?php echo $field; ?>" placeholder="أدخل <?php echo $label; ?>" <?php echo $required; ?>>
+                                <input type="text" id="<?php echo $field_name; ?>" name="<?php echo $field_name; ?>" placeholder="أدخل <?php echo $label; ?>" <?php echo $required; ?> <?php if ($is_date_field) echo 'readonly style="cursor: pointer;"'; ?>>
                             <?php endif; ?>
                         </div>
                 <?php
@@ -529,195 +695,167 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                     echo "<p class='error-message'><i class='fas fa-exclamation-circle'></i> خطأ في جلب معلومات الحقول: " . $e->getMessage() . "</p>";
                 }
                 ?>
-                <button type="submit" class="add-program-btn"><i class="fas fa-plus"></i> إضافة</button>
+                <div class="form-group full-width">
+                    <button type="submit" class="add-program-btn"><i class="fas fa-plus"></i> إضافة البرنامج</button>
+                </div>
             </form>
             <a href="dashboard.php" class="back-btn"><i class="fas fa-arrow-right"></i> رجوع</a>
         </div>
     </section>
 
     <script>
-        const debugInfo = <?php echo json_encode($debug); ?>;
-        console.group('Add Program Debug Info');
-        console.log('Debug Data:', debugInfo);
-        console.groupEnd();
+document.addEventListener('DOMContentLoaded', function() {
+    let activeCalendarInput = null;
+    const calendarElement = createCalendarElement();
+    document.body.appendChild(calendarElement);
 
-        // أسماء الشهور الهجرية
-        const hijriMonths = [
-            'محرم', 'صفر', 'ربيع الأول', 'ربيع الثاني', 'جمادى الأولى', 'جمادى الثانية',
-            'رجب', 'شعبان', 'رمضان', 'شوال', 'ذو القعدة', 'ذو الحجة'
-        ];
+    const hijriMonths = ['محرم', 'صفر', 'ربيع الأول', 'ربيع الثاني', 'جمادى الأولى', 'جمادى الثانية', 'رجب', 'شعبان', 'رمضان', 'شوال', 'ذو القعدة', 'ذو الحجة'];
+    const hijriDays = ['الأحد', 'الإثنين', 'الثلاثاء', 'الأربعاء', 'الخميس', 'الجمعة', 'السبت'];
+    
+    // More accurate calculation for the first day of the month
+    const hijriYearStartDay = {
+        1446: 0, // 1 Muharram 1446 is a Sunday
+        1447: 4, // 1 Muharram 1447 is a Thursday
+        1448: 2  // 1 Muharram 1448 is a Tuesday
+    };
+    const hijriMonthLengths = [30, 29, 30, 29, 30, 29, 30, 29, 30, 29, 30, 29]; // Approximate lengths
 
-        // أسماء الأيام
-        const hijriDays = ['الأحد', 'الإثنين', 'الثلاثاء', 'الأربعاء', 'الخميس', 'الجمعة', 'السبت'];
+    function createCalendarElement() {
+        const calendar = document.createElement('div');
+        calendar.className = 'hijri-calendar';
+        calendar.style.cssText = `
+            position: absolute;
+            background: white;
+            border: 1px solid #ddd;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.15);
+            z-index: 1002;
+            padding: 15px;
+            width: 320px;
+            display: none;
+            font-family: 'Tajawal', sans-serif;
+            opacity: 0;
+            transform: translateY(10px);
+            transition: opacity 0.3s ease, transform 0.3s ease;
+        `;
+        return calendar;
+    }
 
-        // إنشاء التقويم الهجري
-        function createHijriCalendar() {
-            const calendar = document.createElement('div');
-            calendar.className = 'hijri-calendar';
-            calendar.style.cssText = `
-                position: absolute;
-                top: 100%;
-                right: 0;
-                background: white;
-                border: 2px solid var(--primary);
-                border-radius: 15px;
-                box-shadow: 0 10px 30px rgba(0,0,0,0.15);
-                z-index: 1000;
-                padding: 15px;
-                min-width: 300px;
-                display: none;
-                font-family: 'Tajawal', sans-serif;
-            `;
+    function renderCalendar(year, month, selectedDay = null) {
+        calendarElement.innerHTML = `
+            <div class="calendar-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                <button type="button" class="nav-btn" data-action="prev-month">‹</button>
+                <div style="display: flex; gap: 5px; font-weight: bold;">
+                    <span id="current-month">${hijriMonths[month-1]}</span>
+                    <span id="current-year">${year}هـ</span>
+                </div>
+                <button type="button" class="nav-btn" data-action="next-month">›</button>
+            </div>
+            <div class="calendar-grid-header" style="display: grid; grid-template-columns: repeat(7, 1fr); gap: 5px; margin-bottom: 10px;">
+                ${hijriDays.map(day => `<div style="text-align: center; font-weight: bold; color: var(--primary); padding: 6px; font-size: 0.8rem;">${day.substring(0,3)}</div>`).join('')}
+            </div>
+            <div class="calendar-grid-days" style="display: grid; grid-template-columns: repeat(7, 1fr); gap: 5px;"></div>
+        `;
 
-            let displayYear = 1447; // السنة الهجرية الافتراضية
-            let displayMonth = 1;
+        const daysContainer = calendarElement.querySelector('.calendar-grid-days');
+        const daysInMonth = hijriMonthLengths[month - 1] + ((month === 12 && (year === 1446 || year === 1447)) ? 1 : 0); // Simple leap year adjustment
 
-            function updateCalendar() {
-                calendar.innerHTML = `
-                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
-                        <button type="button" class="nav-btn" data-action="prev-year">«</button>
-                        <button type="button" class="nav-btn" data-action="prev-month">‹</button>
-                        <div style="display: flex; gap: 5px;">
-                            <select id="hijri-month-select" class="hijri-select"></select>
-                            <select id="hijri-year-select" class="hijri-select"></select>
-                        </div>
-                        <button type="button" class="nav-btn" data-action="next-month">›</button>
-                        <button type="button" class="nav-btn" data-action="next-year">»</button>
-                    </div>
-                    <div style="display: grid; grid-template-columns: repeat(7, 1fr); gap: 5px; margin-bottom: 15px;">
-                        ${hijriDays.map(day => `<div style="text-align: center; font-weight: bold; color: var(--primary); padding: 6px; font-size: 0.8rem;">${day}</div>`).join('')}
-                    </div>
-                    <div id="calendar-days" style="display: grid; grid-template-columns: repeat(7, 1fr); gap: 3px;">
-                    </div>
-                    <div style="text-align: center; margin-top: 15px;">
-                        <button type="button" id="close-calendar" style="background: var(--secondary); color: white; border: none; padding: 7px 18px; border-radius: 8px; cursor: pointer; font-size: 0.9rem;">إغلاق</button>
-                    </div>
-                `;
-
-                const monthSelect = calendar.querySelector('#hijri-month-select');
-                const yearSelect = calendar.querySelector('#hijri-year-select');
-
-                hijriMonths.forEach((monthName, index) => {
-                    const option = document.createElement('option');
-                    option.value = index + 1;
-                    option.textContent = monthName;
-                    if ((index + 1) === displayMonth) option.selected = true;
-                    monthSelect.appendChild(option);
-                });
-                monthSelect.addEventListener('change', (e) => {
-                    displayMonth = parseInt(e.target.value);
-                    updateCalendar();
-                });
-
-                for (let y = 1446; y <= 1448; y++) {
-                    const option = document.createElement('option');
-                    option.value = y;
-                    option.textContent = y + 'هـ';
-                    if (y === displayYear) option.selected = true;
-                    yearSelect.appendChild(option);
-                }
-                yearSelect.addEventListener('change', (e) => {
-                    displayYear = parseInt(e.target.value);
-                    updateCalendar();
-                });
-
-                const daysContainer = calendar.querySelector('#calendar-days');
-                daysContainer.innerHTML = '';
-                const daysInMonth = (displayMonth === 12 || displayMonth === 11) ? 29 : 30;
-                const referenceDate = new Date(2025, 5, 19);
-                const daysSinceReference = (displayYear - 1447) * 354 + (displayMonth - 1) * 29.5;
-                const firstDayDate = new Date(referenceDate.getTime() + daysSinceReference * 24 * 60 * 60 * 1000);
-                const startDay = firstDayDate.getDay();
-
-                for (let i = 0; i < startDay; i++) {
-                    daysContainer.innerHTML += '<div></div>';
-                }
-
-                for (let day = 1; day <= daysInMonth; day++) {
-                    const dayElement = document.createElement('div');
-                    dayElement.style.cssText = `
-                        text-align: center; padding: 8px 4px; cursor: pointer; border-radius: 8px;
-                        transition: all 0.2s ease; font-weight: 500; font-size: 0.9rem;
-                    `;
-                    dayElement.textContent = day;
-                    dayElement.addEventListener('click', () => selectDate(displayYear, displayMonth, day));
-                    dayElement.addEventListener('mouseover', () => {
-                        dayElement.style.backgroundColor = 'var(--primary)';
-                        dayElement.style.color = 'white';
-                    });
-                    dayElement.addEventListener('mouseout', () => {
-                        dayElement.style.backgroundColor = '';
-                        dayElement.style.color = '';
-                    });
-                    daysContainer.appendChild(dayElement);
-                }
-
-                calendar.querySelectorAll('.nav-btn').forEach(btn => {
-                    btn.style.cssText = `
-                        background: var(--primary); color: white; border: none; padding: 6px 10px;
-                        border-radius: 8px; cursor: pointer; font-size: 1rem; transition: all 0.2s ease;
-                    `;
-                    btn.addEventListener('mouseover', () => btn.style.backgroundColor = '#7a1fc2');
-                    btn.addEventListener('mouseout', () => btn.style.backgroundColor = 'var(--primary)');
-                    btn.addEventListener('click', (e) => {
-                        const action = e.target.dataset.action;
-                        switch(action) {
-                            case 'prev-year': displayYear--; break;
-                            case 'next-year': displayYear++; break;
-                            case 'prev-month':
-                                displayMonth--;
-                                if (displayMonth < 1) { displayMonth = 12; displayYear--; }
-                                break;
-                            case 'next-month':
-                                displayMonth++;
-                                if (displayMonth > 12) { displayMonth = 1; displayYear++; }
-                                break;
-                        }
-                        updateCalendar();
-                    });
-                });
-
-                calendar.querySelector('#close-calendar').addEventListener('click', () => {
-                    calendar.style.display = 'none';
-                });
-
-                calendar.querySelectorAll('.hijri-select').forEach(sel => {
-                    sel.style.cssText = `
-                        padding: 5px 8px; border: 1px solid var(--primary); border-radius: 5px;
-                        font-family: 'Tajawal', sans-serif; font-size: 0.9rem;`;
-                });
-            }
-
-            function selectDate(year, month, day) {
-                const hijriDateStr = `${String(day).padStart(2, '0')}/${String(month).padStart(2, '0')}/${year}`;
-                document.getElementById('start_date').value = hijriDateStr;
-                calendar.style.display = 'none';
-            }
-
-            updateCalendar();
-            return calendar;
+        let firstDayOfMonth = hijriYearStartDay[year] || 0;
+        for (let i = 0; i < month - 1; i++) {
+            firstDayOfMonth = (firstDayOfMonth + hijriMonthLengths[i]) % 7;
         }
 
-        const dateInput = document.getElementById('start_date');
-        const dateContainer = dateInput.parentElement;
-        
-        if (window.getComputedStyle(dateContainer).position === 'static') {
-            dateContainer.style.position = 'relative';
+        for (let i = 0; i < firstDayOfMonth; i++) {
+            daysContainer.innerHTML += '<div></div>';
         }
 
-        const hijriCalendar = createHijriCalendar();
-        dateContainer.appendChild(hijriCalendar);
+        for (let day = 1; day <= daysInMonth; day++) {
+            const dayElement = document.createElement('div');
+            dayElement.textContent = day;
+            dayElement.style.cssText = `text-align: center; padding: 8px 4px; cursor: pointer; border-radius: 50%; transition: all 0.2s ease; font-weight: 500;`;
+            if (day === selectedDay) {
+                dayElement.style.backgroundColor = 'var(--primary)';
+                dayElement.style.color = 'white';
+            }
+            dayElement.addEventListener('click', () => selectDate(year, month, day));
+            dayElement.addEventListener('mouseover', () => { if(day !== selectedDay) dayElement.style.backgroundColor = '#f0e6ff'; });
+            dayElement.addEventListener('mouseout', () => { if(day !== selectedDay) dayElement.style.backgroundColor = ''; });
+            daysContainer.appendChild(dayElement);
+        }
 
-        dateInput.addEventListener('click', (e) => {
-            e.preventDefault();
-            hijriCalendar.style.display = hijriCalendar.style.display === 'block' ? 'none' : 'block';
+        calendarElement.querySelectorAll('.nav-btn').forEach(btn => {
+            btn.style.cssText = `background: none; border: none; font-size: 1.5rem; color: var(--primary); cursor: pointer;`;
+            btn.addEventListener('click', (e) => {
+                const action = e.target.dataset.action;
+                let newMonth = month, newYear = year;
+                if (action === 'prev-month') {
+                    newMonth--;
+                    if (newMonth < 1) { newMonth = 12; newYear--; }
+                } else {
+                    newMonth++;
+                    if (newMonth > 12) { newMonth = 1; newYear++; }
+                }
+                renderCalendar(newYear, newMonth, selectedDay);
+            });
         });
+    }
 
-        document.addEventListener('click', (e) => {
-            if (!dateContainer.contains(e.target)) {
-                hijriCalendar.style.display = 'none';
+    function selectDate(year, month, day) {
+        if (!activeCalendarInput) return;
+        const dateStr = `${String(day).padStart(2, '0')}/${String(month).padStart(2, '0')}/${year}`;
+        activeCalendarInput.value = dateStr;
+        hideCalendar();
+    }
+
+    function showCalendar(targetInput) {
+        activeCalendarInput = targetInput;
+        const rect = targetInput.getBoundingClientRect();
+        calendarElement.style.top = `${window.scrollY + rect.bottom + 5}px`;
+        calendarElement.style.right = `${window.innerWidth - rect.right}px`;
+
+        let currentYear = 1447, currentMonth = 1, currentDay = null;
+        const currentValue = targetInput.value;
+        if (currentValue && /^\d{1,2}\/\d{1,2}\/\d{4}$/.test(currentValue)) {
+            const parts = currentValue.split('/');
+            currentDay = parseInt(parts[0], 10);
+            currentMonth = parseInt(parts[1], 10);
+            currentYear = parseInt(parts[2], 10);
+        }
+
+        renderCalendar(currentYear, currentMonth, currentDay);
+        calendarElement.style.display = 'block';
+        setTimeout(() => {
+            calendarElement.style.opacity = '1';
+            calendarElement.style.transform = 'translateY(0)';
+        }, 10);
+    }
+
+    function hideCalendar() {
+        calendarElement.style.opacity = '0';
+        calendarElement.style.transform = 'translateY(10px)';
+        setTimeout(() => {
+            calendarElement.style.display = 'none';
+            activeCalendarInput = null;
+        }, 300);
+    }
+
+    document.querySelectorAll('input[id="start_date"], input[id="end_date"]').forEach(input => {
+        input.addEventListener('click', (e) => {
+            e.stopPropagation();
+            if (activeCalendarInput === e.target) {
+                hideCalendar();
+            } else {
+                showCalendar(e.target);
             }
         });
+    });
+
+    document.addEventListener('click', (e) => {
+        if (activeCalendarInput && !calendarElement.contains(e.target) && e.target !== activeCalendarInput) {
+            hideCalendar();
+        }
+    });
+});
     </script>
 </body>
 </html>

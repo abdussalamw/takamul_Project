@@ -15,6 +15,11 @@ if (!isset($_SESSION['admin_id'])) {
     exit;
 }
 
+if (!isset($_SESSION['permissions']['can_delete_programs']) || !$_SESSION['permissions']['can_delete_programs']) {
+    header('Location: dashboard.php?status=unauthorized');
+    exit;
+}
+
 if (!isset($_GET['id'])) {
     $debug['id_missing'] = 'Program ID not provided';
     header('Location: dashboard.php');
