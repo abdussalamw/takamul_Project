@@ -49,9 +49,20 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             $error = "تاريخ البدء غير صالح (يجب أن يكون DD/MM/YYYY) 🚫";
             $debug['error'] = 'Invalid start date format: ' . $start_date;
         } else {
-            // تم إضافة حقل Direction
-            $stmt = $pdo->prepare("INSERT INTO programs (title, organizer, Direction, location, duration, start_date, age_group, description, price, registration_link) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
-            $stmt->execute([$title, $organizer, $direction, $location, $duration, $start_date, $age_group, $description, $price, $registration_link ?: NULL]);
+            // جلب أسماء الأعمدة من الجدول
+            $stmt = $pdo->query("DESCRIBE programs");
+            $columns = $stmt->fetchAll(PDO::FETCH_COLUMN);
+            
+            // إعداد استعلام الإدراج ديناميكيًا
+            $placeholders = implode(', ', array_fill(0, count($columns) - 1, '?')); // تجاهل 'id'
+            $sql = "INSERT INTO programs (" . implode(', ', array_slice($columns, 1)) . ") VALUES (" . $placeholders . ")";
+            $stmt = $pdo->prepare($sql);
+            
+            // إعداد قيم للمعلمات
+            $values = [$title, $organizer, $direction, $location, $duration, $start_date, $age_group, $description, $price, $registration_link ?: NULL];
+            
+            // تنفيذ الاستعلام
+            $stmt->execute($values);
             $debug['program_added'] = true;
             $debug['program_id'] = $pdo->lastInsertId();
             header('Location: dashboard.php?status=added');
@@ -488,46 +499,36 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             <h2>إضافة برنامج جديد ➕</h2>
             <?php if (isset($error)) echo "<p class='error-message'><i class='fas fa-exclamation-circle'></i> $error</p>"; ?>
             <form method="POST" class="add-program-form" id="add-program-form">
-                <div class="form-group">
-                    <label for="title"><i class="fas fa-heading"></i> عنوان البرنامج</label>
-                    <input type="text" id="title" name="title" placeholder="أدخل عنوان البرنامج" required>
-                </div>
-                <div class="form-group">
-                    <label for="organizer"><i class="fas fa-user-tie"></i> اسم الجهة المنظمة</label>
-                    <input type="text" id="organizer" name="organizer" placeholder="أدخل اسم الجهة المنظمة" required>
-                </div>
-                <div class="form-group">
-                    <label for="Direction"><i class="fas fa-map-signs"></i> المنطقة (Direction)</label>
-                    <input type="text" id="Direction" name="Direction" placeholder="مثال: شمال الرياض، شرق الرياض" required>
-                </div>
-                <div class="form-group">
-                    <label for="start_date"><i class="fas fa-calendar"></i> تاريخ بدء البرنامج</label>
-                    <input type="text" id="start_date" name="start_date" placeholder="اختر تاريخ بدء البرنامج (مثال: 01/01/1447)" required readonly>
-                </div>
-                <div class="form-group">
-                    <label for="location"><i class="fas fa-map-marker-alt"></i> مكان إقامة البرنامج</label>
-                    <input type="text" id="location" name="location" placeholder="أدخل مكان إقامة البرنامج" required>
-                </div>
-                <div class="form-group">
-                    <label for="duration"><i class="fas fa-clock"></i> مدة البرنامج</label>
-                    <input type="text" id="duration" name="duration" placeholder="أدخل مدة البرنامج (مثال: أسبوع)" required>
-                </div>
-                <div class="form-group">
-                    <label for="age_group"><i class="fas fa-users"></i> الفئة العمرية</label>
-                    <input type="text" id="age_group" name="age_group" placeholder="أدخل الفئة العمرية (مثال: 10-15)" required>
-                </div>
-                <div class="form-group">
-                    <label for="price"><i class="fas fa-money-bill"></i> رسوم البرنامج</label>
-                    <input type="text" id="price" name="price" placeholder="أدخل رسوم البرنامج (مثال: 500 أو مجاني)" required>
-                </div>
-                <div class="form-group">
-                    <label for="registration_link"><i class="fas fa-link"></i> رابط التسجيل</label>
-                    <input type="text" id="registration_link" name="registration_link" placeholder="أدخل رابط التسجيل أو نص مثل 'عبر الواتساب'">
-                </div>
-                <div class="form-group full-width">
-                    <label for="description"><i class="fas fa-file-alt"></i> وصف مختصر للبرنامج</label>
-                    <textarea id="description" name="description" placeholder="أدخل وصف مختصر للبرنامج" required></textarea>
-                </div>
+                <?php
+                try {
+                    $stmt = $pdo->query("DESCRIBE programs");
+                    $columns = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+                    foreach ($columns as $column) {
+                        $field = $column['Field'];
+                        if ($field == 'id') continue; // تخطي حقل المعرف
+
+                        $required = $column['Null'] == 'NO' ? 'required' : '';
+                        $label = ucfirst(str_replace('_', ' ', $field)); // تسمية الحقل
+                ?>
+                        <div class="form-group">
+                            <label for="<?php echo $field; ?>"><i class="fas fa-edit"></i> <?php echo $label; ?></label>
+                            <?php if ($column['Type'] == 'text'): ?>
+                                <input type="text" id="<?php echo $field; ?>" name="<?php echo $field; ?>" placeholder="أدخل <?php echo $label; ?>" <?php echo $required; ?>>
+                            <?php elseif (strpos($column['Type'], 'varchar') !== false): ?>
+                                <input type="text" id="<?php echo $field; ?>" name="<?php echo $field; ?>" placeholder="أدخل <?php echo $label; ?>" <?php echo $required; ?>>
+                            <?php elseif ($column['Type'] == 'longtext'): ?>
+                                <textarea id="<?php echo $field; ?>" name="<?php echo $field; ?>" placeholder="أدخل <?php echo $label; ?>" <?php echo $required; ?>></textarea>
+                            <?php else: ?>
+                                <input type="text" id="<?php echo $field; ?>" name="<?php echo $field; ?>" placeholder="أدخل <?php echo $label; ?>" <?php echo $required; ?>>
+                            <?php endif; ?>
+                        </div>
+                <?php
+                    }
+                } catch (PDOException $e) {
+                    echo "<p class='error-message'><i class='fas fa-exclamation-circle'></i> خطأ في جلب معلومات الحقول: " . $e->getMessage() . "</p>";
+                }
+                ?>
                 <button type="submit" class="add-program-btn"><i class="fas fa-plus"></i> إضافة</button>
             </form>
             <a href="dashboard.php" class="back-btn"><i class="fas fa-arrow-right"></i> رجوع</a>
