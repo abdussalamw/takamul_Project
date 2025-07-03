@@ -574,57 +574,36 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     </section>
 
     <script>
-    document.addEventListener('DOMContentLoaded', function() {
-        let activeCalendarInput = null;
-        const calendarElement = createCalendarElement();
-        document.body.appendChild(calendarElement);
+document.addEventListener('DOMContentLoaded', function() {
+    let activeCalendarInput = null;
+    const calendarElement = createCalendarElement();
+    document.body.appendChild(calendarElement);
 
-        const hijriMonths = ['محرم', 'صفر', 'ربيع الأول', 'ربيع الثاني', 'جمادى الأولى', 'جمادى الثانية', 'رجب', 'شعبان', 'رمضان', 'شوال', 'ذو القعدة', 'ذو الحجة'];
-        const hijriDays = ['الأحد', 'الإثنين', 'الثلاثاء', 'الأربعاء', 'الخميس', 'الجمعة', 'السبت'];
-        
-        const hijriYearStartDay = {
-            1446: 0, // 1 Muharram 1446 is a Sunday
-            1447: 4, // 1 Muharram 1447 is a Thursday
-            1448: 2  // 1 Muharram 1448 is a Tuesday
-        };
-        const hijriMonthLengths = [30, 29, 30, 29, 30, 29, 30, 29, 30, 29, 30, 29];
+    const hijriMonths = ['محرم', 'صفر', 'ربيع الأول', 'ربيع الثاني', 'جمادى الأولى', 'جمادى الثانية', 'رجب', 'شعبان', 'رمضان', 'شوال', 'ذو القعدة', 'ذو الحجة'];
+    const hijriDays = ['الأحد', 'الإثنين', 'الثلاثاء', 'الأربعاء', 'الخميس', 'الجمعة', 'السبت'];
+    
+    // More accurate calculation for the first day of the month
+    const hijriYearStartDay = {
+        1446: 0, // 1 Muharram 1446 is a Sunday
+        1447: 4, // 1 Muharram 1447 is a Thursday
+        1448: 2  // 1 Muharram 1448 is a Tuesday
+    };
+    const hijriMonthLengths = [30, 29, 30, 29, 30, 29, 30, 29, 30, 29, 30, 29]; // Approximate lengths
 
-        function createCalendarElement() {
-            const calendar = document.createElement('div');
-            calendar.className = 'hijri-calendar';
-            calendar.style.cssText = `
-                position: absolute;
-                background: white;
-                border: 1px solid #ddd;
-                border-radius: 15px;
-                box-shadow: 0 10px 30px rgba(0,0,0,0.15);
-                z-index: 1002;
-                padding: 15px;
-                width: 320px;
-                display: none;
-                font-family: 'Tajawal', sans-serif;
-                opacity: 0;
-                transform: translateY(10px);
-                transition: opacity 0.3s ease, transform 0.3s ease;
-            `;
-            return calendar;
-        }
-
-        function renderCalendar(year, month, selectedDay = null) {
-            calendarElement.innerHTML = `
-                <div class="calendar-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
-                    <button type="button" class="nav-btn" data-action="prev-month">‹</button>
-                    <div style="display: flex; gap: 5px; font-weight: bold;">
-                        <span id="current-month">${hijriMonths[month-1]}</span>
-                        <span id="current-year">${year}هـ</span>
-                    </div>
-                    <button type="button" class="nav-btn" data-action="next-month">›</button>
-                </div>
-                <div class="calendar-grid-header" style="display: grid; grid-template-columns: repeat(7, 1fr); gap: 5px; margin-bottom: 10px;">
-                    ${hijriDays.map(day => `<div style="text-align: center; font-weight: bold; color: var(--primary); padding: 6px; font-size: 0.8rem;">${day.substring(0,3)}</div>`).join('')}
-                </div>
-                <div class="calendar-grid-days" style="display: grid; grid-template-columns: repeat(7, 1fr); gap: 5px;"></div>
-            `;
-
-            const daysContainer = calendarElement.querySelector('.calendar-grid-days');
-            const daysInMonth = hijriMonthLengths[month - 1] + ((month === 12 && (year === 1446 || year === 1
+    function createCalendarElement() {
+        const calendar = document.createElement('div');
+        calendar.className = 'hijri-calendar';
+        calendar.style.cssText = `
+            position: absolute;
+            background: white;
+            border: 1px solid #ddd;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.15);
+            z-index: 1002;
+            padding: 15px;
+            width: 320px;
+            display: none;
+            font-family: 'Tajawal', sans-serif;
+            opacity: 0;
+            transform: translateY(10px);
+            transition: opacity 0.3s ease, transform 0.3s
