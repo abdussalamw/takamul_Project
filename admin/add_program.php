@@ -30,83 +30,44 @@ if (empty($_SESSION['csrf_token'])) {
 $csrf_token = $_SESSION['csrf_token'];
 
 if ($_SERVER['REQUEST_METHOD'] == 'POST') {
-    // --- التعامل مع رفع الملفات أولاً ---
-    if (isset($_FILES['ad_link_file']) && $_FILES['ad_link_file']['error'] === UPLOAD_ERR_OK) {
-        $upload_dir = '../uploads/';
-        if (!is_dir($upload_dir)) {
-            // Use more secure permissions
-            mkdir($upload_dir, 0755, true);
-        }
+    // CSRF Token Validation
+    if (!isset($_POST['csrf_token']) || !hash_equals($_SESSION['csrf_token'], $_POST['csrf_token'])) {
+        $error = "فشل التحقق من الطلب (CSRF)، يرجى تحديث الصفحة والمحاولة مرة أخرى. 🚫";
+    } else {
+        $ad_link_path = null;
 
-        $file_tmp_path = $_FILES['ad_link_file']['tmp_name'];
-        $file_name = basename($_FILES['ad_link_file']['name']);
-        $file_size = $_FILES['ad_link_file']['size'];
-        $file_ext = strtolower(pathinfo($file_name, PATHINFO_EXTENSION));
+        // --- 1. التعامل مع رفع الملفات ---
+        if (isset($_FILES['ad_link']) && $_FILES['ad_link']['error'] === UPLOAD_ERR_OK) {
+            $upload_dir = '../uploads/';
+            if (!is_dir($upload_dir)) {
+                mkdir($upload_dir, 0755, true);
+            }
 
-        $allowed_ext = ['jpg', 'jpeg', 'png', 'pdf'];
-        $max_file_size = 5 * 1024 * 1024; // 5 MB
+            $file_tmp_path = $_FILES['ad_link']['tmp_name'];
+            $file_name = basename($_FILES['ad_link']['name']);
+            $file_size = $_FILES['ad_link']['size'];
+            $file_ext = strtolower(pathinfo($file_name, PATHINFO_EXTENSION));
 
-        if (in_array($file_ext, $allowed_ext)) {
-            if ($file_size <= $max_file_size) {
-                // إنشاء اسم فريد للملف لمنع الكتابة فوق الملفات الموجودة
+            $allowed_ext = ['jpg', 'jpeg', 'png', 'pdf'];
+            $max_file_size = 5 * 1024 * 1024; // 5 MB
+
+            if (!in_array($file_ext, $allowed_ext)) {
+                $error = "نوع الملف غير مسموح به. (المسموح: jpg, png, pdf) 🚫";
+            } elseif ($file_size > $max_file_size) {
+                $error = "حجم الملف كبير جداً. الحد الأقصى هو 5 ميجابايت. 🚫";
+            } else {
                 $new_file_name = uniqid('ad_', true) . '.' . $file_ext;
                 $dest_path = $upload_dir . $new_file_name;
 
                 if (move_uploaded_file($file_tmp_path, $dest_path)) {
-                    // تخزين المسار النسبي في متغير POST ليتم حفظه في قاعدة البيانات
-                    $_POST['ad_link_file'] = 'uploads/' . $new_file_name;
+                    $ad_link_path = 'uploads/' . $new_file_name;
                 } else {
                     $error = "حدث خطأ أثناء نقل الملف المرفوع. 🚫";
                 }
-            } else {
-                $error = "حجم الملف كبير جداً. الحد الأقصى هو 5 ميجابايت. 🚫";
-            }
-        } else {
-            $error = "نوع الملف غير مسموح به. (المسموح: jpg, png, pdf) 🚫";
-        }
-    }
-
-    // CSRF Token Validation
-    if (!isset($_POST['csrf_token']) || !hash_equals($_SESSION['csrf_token'], $submitted_csrf_token)) {
-        $error = "فشل التحقق من الطلب (CSRF)، يرجى تحديث الصفحة والمحاولة مرة أخرى. 🚫";
-        // Regenerate token on failure
-        $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
-    }
-
-
-    $data_to_insert = [];
-    $db_columns = [];
-    $placeholders = [];
-    $params = [];
-
-    // جلب الأعمدة من قاعدة البيانات لضمان معالجة الحقول الصحيحة فقط
-    $stmt = $pdo->query("DESCRIBE programs");
-    $table_columns_info = $stmt->fetchAll(PDO::FETCH_ASSOC);
-
-    foreach ($table_columns_info as $column_info) {
-        $column_name = $column_info['Field'];
-        if ($column_name === 'id') {
-            continue;
-        }
-
-        // التحقق مما إذا تم إرسال البيانات لهذا العمود
-        if (isset($_POST[$column_name])) {
-            $db_columns[] = "`$column_name`";
-            $placeholders[] = '?';
-            // لا نستخدم trim على مسار الملف
-            $value = ($column_name === 'ad_link_file') ? $_POST[$column_name] : trim($_POST[$column_name]);
-
-            // التعامل مع الحقول الاختيارية الفارغة مثل رابط التسجيل
-            if (empty($value) && $column_info['Null'] === 'YES') {
-                $params[] = NULL;
-            } else {
-                $params[] = $value;
             }
         }
-    }
 
-    // استمرار العملية فقط إذا لم يكن هناك خطأ في رفع الملف
-    if (!isset($error)) {
+        // --- 2. التحقق من صحة البيانات وإعدادها للإدخال ---
         // التحقق من صحة البيانات الأساسية
         if (empty($_POST['title']) || empty($_POST['start_date'])) {
             $error = "حقل العنوان وتاريخ البدء مطلوبان على الأقل 🚫";
@@ -114,7 +75,45 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
         } elseif (isset($_POST['start_date']) && !preg_match('/^\d{1,2}\/\d{1,2}\/\d{4}$/', $_POST['start_date'])) {
             $error = "تاريخ البدء غير صالح (يجب أن يكون DD/MM/YYYY) 🚫";
             $debug['error'] = 'Invalid start date format: ' . $_POST['start_date'];
-        } else {
+        }
+
+        // استمرار العملية فقط إذا لم يكن هناك أي خطأ
+        if (!isset($error)) {
+            $db_columns = [];
+            $placeholders = [];
+            $params = [];
+
+            $stmt = $pdo->query("DESCRIBE programs");
+            $table_columns_info = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+            foreach ($table_columns_info as $column_info) {
+                $column_name = $column_info['Field'];
+                if ($column_name === 'id') continue;
+
+                if ($column_name === 'ad_link') {
+                    if ($ad_link_path) { // فقط إذا تم رفع ملف جديد
+                        $db_columns[] = "`$column_name`";
+                        $placeholders[] = '?';
+                        $params[] = $ad_link_path;
+                    }
+                } elseif (isset($_POST[$column_name])) {
+                    $db_columns[] = "`$column_name`";
+                    $placeholders[] = '?';
+                    $value = trim($_POST[$column_name]);
+                    $params[] = (empty($value) && $column_info['Null'] === 'YES') ? NULL : $value;
+                }
+            }
+
+            // Determine status based on which button was clicked
+            $status = 'pending'; // Default to pending (draft)
+            if (isset($_POST['save_publish']) && !empty($_SESSION['permissions']['can_publish_programs'])) {
+                $status = 'published';
+            }
+            $db_columns[] = '`status`';
+            $placeholders[] = '?';
+            $params[] = $status;
+
+            // --- 3. تنفيذ الإدخال في قاعدة البيانات ---
             try {
                 $sql = "INSERT INTO programs (" . implode(', ', $db_columns) . ") VALUES (" . implode(', ', $placeholders) . ")";
                 $stmt = $pdo->prepare($sql);
@@ -416,6 +415,28 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
         }
 
+        /* New styles for form actions container */
+        .form-actions-container {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 1.5rem;
+            margin-top: 2rem;
+            padding-top: 1.5rem;
+            border-top: 1px solid #e9ecef;
+            width: 100%;
+        }
+        .status-toggle { display: flex; align-items: center; gap: 10px; }
+        .status-toggle label { margin-bottom: 0; font-weight: 600; }
+        .switch { position: relative; display: inline-block; width: 50px; height: 28px; }
+        .switch input { opacity: 0; width: 0; height: 0; }
+        .slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: #ccc; transition: .4s; border-radius: 28px; }
+        .slider:before { position: absolute; content: ""; height: 20px; width: 20px; left: 4px; bottom: 4px; background-color: white; transition: .4s; border-radius: 50%; }
+        input:checked + .slider { background-color: var(--success); }
+        input:checked + .slider:before { transform: translateX(22px); }
+        .back-btn-inline { text-decoration: none; font-weight: 600; color: var(--secondary); display: inline-flex; align-items: center; gap: 8px; }
+        .back-btn-inline:hover { text-decoration: underline; }
+
         .back-btn {
             display: inline-flex;
             align-items: center;
@@ -611,7 +632,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                         'age_group'         => 'الفئة العمرية',
                         'price'             => 'رسوم البرنامج',
                         'registration_link' => 'رابط التسجيل',
-                        'ad_link'      => 'صورة الإعلان (صورة أو PDF)',
+                        'ad_link'           => 'صورة الإعلان (صورة أو PDF)',
                         'google_map'  => 'رابط الموقع على خرائط جوجل',
                     ];
 
@@ -629,8 +650,8 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                         'age_group'         => 'fas fa-users',
                         'price'             => 'fas fa-money-bill',
                         'registration_link' => 'fas fa-link',
-                        'ad_link_file'      => 'fas fa-image',
-                        'google_maps_link'  => 'fas fa-map-marked-alt',
+                        'ad_link'           => 'fas fa-image',
+                        'google_map'        => 'fas fa-map-marked-alt',
                     ];
 
                     $stmt = $pdo->query("DESCRIBE programs");
@@ -678,15 +699,18 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                         $required = $column['Null'] == 'NO' ? 'required' : '';
                         $label = $field_translations[$field_name] ?? ucfirst(str_replace('_', ' ', $field_name));
                         $icon_class = $field_icons[$field_name] ?? 'fas fa-edit';
+
+                        // Repopulate form with submitted data on error to improve UX
+                        $submitted_value = isset($_POST[$field_name]) ? htmlspecialchars($_POST[$field_name]) : '';
                 ?>
                         <div class="<?php echo $group_classes; ?>">
                             <label for="<?php echo $field_name; ?>"><i class="<?php echo $icon_class; ?>"></i> <?php echo $label; ?></label>
-                            <?php if ($field_name === 'ad_link_file'): ?>
+                            <?php if ($field_name === 'ad_link'): ?>
                                 <input type="file" id="<?php echo $field_name; ?>" name="<?php echo $field_name; ?>" accept=".jpg, .jpeg, .png, .pdf">
                             <?php elseif ($column['Type'] == 'longtext' || $column['Type'] == 'text'): ?>
-                                <textarea id="<?php echo $field_name; ?>" name="<?php echo $field_name; ?>" placeholder="أدخل <?php echo $label; ?>" <?php echo $required; ?>></textarea>
+                                <textarea id="<?php echo $field_name; ?>" name="<?php echo $field_name; ?>" placeholder="أدخل <?php echo $label; ?>" <?php echo $required; ?>><?php echo $submitted_value; ?></textarea>
                             <?php else: ?>
-                                <input type="text" id="<?php echo $field_name; ?>" name="<?php echo $field_name; ?>" placeholder="أدخل <?php echo $label; ?>" <?php echo $required; ?> <?php if ($is_date_field) echo 'readonly style="cursor: pointer;"'; ?>>
+                                <input type="text" id="<?php echo $field_name; ?>" name="<?php echo $field_name; ?>" value="<?php echo $submitted_value; ?>" placeholder="أدخل <?php echo $label; ?>" <?php echo $required; ?> <?php if ($is_date_field) echo 'readonly style="cursor: pointer;"'; ?>>
                             <?php endif; ?>
                         </div>
                 <?php
@@ -695,11 +719,19 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                     echo "<p class='error-message'><i class='fas fa-exclamation-circle'></i> خطأ في جلب معلومات الحقول: " . $e->getMessage() . "</p>";
                 }
                 ?>
-                <div class="form-group full-width">
-                    <button type="submit" class="add-program-btn"><i class="fas fa-plus"></i> إضافة البرنامج</button>
+                <!-- Form Actions Container -->
+                <div class="form-actions-container">
+                    <a href="dashboard.php" class="back-btn-inline"><i class="fas fa-arrow-right"></i> رجوع</a>
+                    <div class="status-toggle">
+                        <label for="status-checkbox">نشر فوري</label>
+                        <label class="switch">
+                            <input type="checkbox" id="status-checkbox" name="status" value="published" checked>
+                            <span class="slider"></span>
+                        </label>
+                    </div>
+                    <button type="submit" class="add-program-btn"><i class="fas fa-save"></i> حفظ البرنامج</button>
                 </div>
             </form>
-            <a href="dashboard.php" class="back-btn"><i class="fas fa-arrow-right"></i> رجوع</a>
         </div>
     </section>
 

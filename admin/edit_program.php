@@ -9,6 +9,7 @@ error_reporting(E_ALL);
 
 $page_title_text = 'تعديل البرنامج';
 $error = null;
+$success = null;
 
 // Security check: must be logged in and have permission to edit programs
 if (empty($_SESSION['admin_id']) || empty($_SESSION['permissions']['can_edit_programs'])) {
@@ -37,7 +38,33 @@ if (empty($_SESSION['csrf_token'])) {
 }
 $csrf_token = $_SESSION['csrf_token'];
 
-if ($_SERVER['REQUEST_METHOD'] == 'POST') {
+if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['update_status'])) {
+    // Handle status update action
+    if (empty($_SESSION['permissions']['can_publish_programs'])) {
+        $error = "ليس لديك الصلاحية لتغيير حالة النشر.";
+    } elseif (!isset($_POST['csrf_token']) || !hash_equals($_SESSION['csrf_token'], $_POST['csrf_token'])) {
+        $error = "فشل التحقق من الطلب (CSRF).";
+    } else {
+        $new_status = $_POST['new_status'];
+        if (in_array($new_status, ['published', 'pending', 'rejected'])) {
+            try {
+                $stmt = $pdo->prepare("UPDATE programs SET status = ? WHERE id = ?");
+                $stmt->execute([$new_status, $program_id]);
+                $program['status'] = $new_status; // Update status in the current view
+                $success = "تم تحديث حالة البرنامج بنجاح. ✅";
+            } catch (PDOException $e) {
+                $error = "خطأ في قاعدة البيانات: " . $e->getMessage();
+            }
+        } else {
+            $error = "حالة غير صالحة.";
+        }
+    }
+    // Regenerate token after any POST
+    $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
+    $csrf_token = $_SESSION['csrf_token'];
+
+} elseif ($_SERVER['REQUEST_METHOD'] == 'POST') {
+    // Handle saving program data
     // 1. CSRF Token Validation
     if (!isset($_POST['csrf_token']) || !hash_equals($_SESSION['csrf_token'], $_POST['csrf_token'])) {
         $error = "فشل التحقق من الطلب (CSRF)، يرجى تحديث الصفحة والمحاولة مرة أخرى. 🚫";
@@ -87,7 +114,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
 
             foreach ($table_columns_info as $column_info) {
                 $column_name = $column_info['Field'];
-                if ($column_name === 'id') continue;
+                if (in_array($column_name, ['id', 'status'])) continue; // Status is handled separately
 
                 $is_file_field = ($column_name === 'ad_link');
                 
@@ -283,6 +310,40 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             text-align: right;
         }
 
+        /* Styles for form actions and status toggle */
+        .form-actions-container {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 1.5rem;
+            margin-top: 2rem;
+            padding-top: 1.5rem;
+            border-top: 1px solid #e9ecef;
+            width: 100%;
+        }
+        .status-toggle { display: flex; align-items: center; gap: 10px; }
+        .status-toggle label { margin-bottom: 0; font-weight: 600; }
+        .switch { position: relative; display: inline-block; width: 50px; height: 28px; }
+        .switch input { opacity: 0; width: 0; height: 0; }
+        .slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: #ccc; transition: .4s; border-radius: 28px; }
+        .slider:before { position: absolute; content: ""; height: 20px; width: 20px; left: 4px; bottom: 4px; background-color: white; transition: .4s; border-radius: 50%; }
+        input:checked + .slider { background-color: var(--success); }
+        input:checked + .slider:before { transform: translateX(22px); }
+        .switch input:disabled + .slider { cursor: not-allowed; background-color: #e9ecef; }
+        .switch input:disabled:checked + .slider { background-color: #a3d9b1; }
+        .back-btn-inline { text-decoration: none; font-weight: 600; color: var(--primary); display: inline-flex; align-items: center; gap: 8px; }
+        .back-btn-inline:hover { text-decoration: underline; }
+
+        .success-message {
+            padding: 15px;
+            margin-bottom: 20px;
+            border-radius: 8px;
+            font-weight: 500;
+            text-align: center;
+            background-color: #d4edda;
+            color: #155724;
+        }
+
         .edit-program-card h2::after {
             content: '';
             position: absolute;
@@ -387,27 +448,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             transition: all 0.3s ease;
             margin: 0 auto;
         }
-
-        .edit-program-btn:hover {
-            background: #7a1fc2;
-            transform: translateY(-2px);
-            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
-        }
-
-        .back-btn {
-            display: inline-flex;
-            align-items: center;
-            gap: 8px;            
-            color: var(--primary);
-            text-decoration: none;
-            font-weight: 600;
-            margin-top: 20px;
-            transition: all 0.3s ease;
-        }
-
-        .back-btn:hover {
-            text-decoration: underline;
-        }
+        .edit-program-btn:hover { background: #7a1fc2; transform: translateY(-2px); box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2); }
 
         @keyframes fadeIn {
             from { opacity: 0; transform: translateY(20px); }
@@ -431,6 +472,27 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             display: block;
             margin-bottom: 5px;
         }        
+
+        /* Status Management Section Styles */
+        .status-management-section {
+            margin-top: 2rem;
+            padding-top: 1.5rem;
+            border-top: 2px dashed #e0e0e0;
+        }
+        .status-management-section h3 { color: var(--dark); margin-bottom: 1rem; }
+        .status-info { margin-bottom: 1rem; font-size: 1.1rem; }
+        .status-badge { padding: 4px 10px; border-radius: 20px; color: white; font-weight: 600; font-size: 0.9rem; }
+        .status-badge.status-published { background-color: var(--success); }
+        .status-badge.status-pending { background-color: #ffc107; color: var(--dark); }
+        .status-badge.status-rejected { background-color: var(--secondary); }
+        .status-actions { display: flex; gap: 1rem; }
+        .status-btn { border: none; padding: 8px 16px; border-radius: 8px; font-weight: 600; cursor: pointer; transition: all 0.3s ease; display: inline-flex; align-items: center; gap: 8px; }
+        .status-btn.publish { background-color: var(--success); color: white; }
+        .status-btn.publish:hover { background-color: #218838; }
+        .status-btn.unpublish { background-color: #ffc107; color: var(--dark); }
+        .status-btn.unpublish:hover { background-color: #e0a800; }
+        .status-btn.reject { background-color: var(--secondary); color: white; }
+        .status-btn.reject:hover { background-color: #c82333; }
 
         @media (max-width: 768px) {
             .form-group.half-width {
@@ -461,7 +523,8 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     <section class="edit-program-section">
         <div class="edit-program-card">
             <h2><i class="fas fa-edit"></i> <?php echo $page_title_text; ?></h2>
-            <?php if (isset($error)) echo "<p class='error-message'><i class='fas fa-exclamation-circle'></i> $error</p>"; ?>
+            <?php if ($success): ?><p class="success-message"><?php echo $success; ?></p><?php endif; ?>
+            <?php if ($error): ?><p class="error-message"><i class='fas fa-exclamation-circle'></i> <?php echo $error; ?></p><?php endif; ?>
             <form method="POST" class="edit-program-form" id="edit-program-form" enctype="multipart/form-data">
                 <input type="hidden" name="csrf_token" value="<?php echo htmlspecialchars($csrf_token); ?>">
                 <?php
@@ -565,11 +628,19 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                     echo "<p class='error-message'><i class='fas fa-exclamation-circle'></i> خطأ في جلب معلومات الحقول: " . $e->getMessage() . "</p>";
                 }
                 ?>
-                <div class="form-group full-width">
+                <div class="form-actions-container">
+                    <a href="dashboard.php" class="back-btn-inline"><i class="fas fa-arrow-right"></i> رجوع</a>
+                    <div class="status-toggle">
+                        <label for="status-checkbox">الحالة:</label>
+                        <label class="switch">
+                            <input type="checkbox" id="status-checkbox" name="status" value="published" <?php if ($program['status'] === 'published') echo 'checked'; ?> disabled>
+                            <span class="slider"></span>
+                        </label>
+                        <span style="font-weight: 500; color: #555;"><?php echo ($program['status'] === 'published') ? 'منشور' : 'قيد المراجعة'; ?></span>
+                    </div>
                     <button type="submit" class="edit-program-btn"><i class="fas fa-save"></i> حفظ التغييرات</button>
                 </div>
             </form>
-            <a href="dashboard.php" class="back-btn"><i class="fas fa-arrow-right"></i> العودة إلى لوحة التحكم</a>
         </div>
     </section>
 
@@ -606,4 +677,126 @@ document.addEventListener('DOMContentLoaded', function() {
             font-family: 'Tajawal', sans-serif;
             opacity: 0;
             transform: translateY(10px);
-            transition: opacity 0.3s ease, transform 0.3s
+            transition: opacity 0.3s ease, transform 0.3s ease;
+        `;
+        return calendar;
+    }
+
+    function renderCalendar(year, month, selectedDay = null) {
+        calendarElement.innerHTML = `
+            <div class="calendar-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                <button type="button" class="nav-btn" data-action="prev-month">‹</button>
+                <div style="display: flex; gap: 5px; font-weight: bold;">
+                    <span id="current-month">${hijriMonths[month-1]}</span>
+                    <span id="current-year">${year}هـ</span>
+                </div>
+                <button type="button" class="nav-btn" data-action="next-month">›</button>
+            </div>
+            <div class="calendar-grid-header" style="display: grid; grid-template-columns: repeat(7, 1fr); gap: 5px; margin-bottom: 10px;">
+                ${hijriDays.map(day => `<div style="text-align: center; font-weight: bold; color: var(--primary); padding: 6px; font-size: 0.8rem;">${day.substring(0,3)}</div>`).join('')}
+            </div>
+            <div class="calendar-grid-days" style="display: grid; grid-template-columns: repeat(7, 1fr); gap: 5px;"></div>
+        `;
+
+        const daysContainer = calendarElement.querySelector('.calendar-grid-days');
+        const daysInMonth = hijriMonthLengths[month - 1] + ((month === 12 && (year === 1446 || year === 1447)) ? 1 : 0); // Simple leap year adjustment
+
+        let firstDayOfMonth = hijriYearStartDay[year] || 0;
+        for (let i = 0; i < month - 1; i++) {
+            firstDayOfMonth = (firstDayOfMonth + hijriMonthLengths[i]) % 7;
+        }
+
+        for (let i = 0; i < firstDayOfMonth; i++) {
+            daysContainer.innerHTML += '<div></div>';
+        }
+
+        for (let day = 1; day <= daysInMonth; day++) {
+            const dayElement = document.createElement('div');
+            dayElement.textContent = day;
+            dayElement.style.cssText = `text-align: center; padding: 8px 4px; cursor: pointer; border-radius: 50%; transition: all 0.2s ease; font-weight: 500;`;
+            if (day === selectedDay) {
+                dayElement.style.backgroundColor = 'var(--primary)';
+                dayElement.style.color = 'white';
+            }
+            dayElement.addEventListener('click', () => selectDate(year, month, day));
+            dayElement.addEventListener('mouseover', () => { if(day !== selectedDay) dayElement.style.backgroundColor = '#f0e6ff'; });
+            dayElement.addEventListener('mouseout', () => { if(day !== selectedDay) dayElement.style.backgroundColor = ''; });
+            daysContainer.appendChild(dayElement);
+        }
+
+        calendarElement.querySelectorAll('.nav-btn').forEach(btn => {
+            btn.style.cssText = `background: none; border: none; font-size: 1.5rem; color: var(--primary); cursor: pointer;`;
+            btn.addEventListener('click', (e) => {
+                const action = e.target.dataset.action;
+                let newMonth = month, newYear = year;
+                if (action === 'prev-month') {
+                    newMonth--;
+                    if (newMonth < 1) { newMonth = 12; newYear--; }
+                } else {
+                    newMonth++;
+                    if (newMonth > 12) { newMonth = 1; newYear++; }
+                }
+                renderCalendar(newYear, newMonth, selectedDay);
+            });
+        });
+    }
+
+    function selectDate(year, month, day) {
+        if (!activeCalendarInput) return;
+        const dateStr = `${String(day).padStart(2, '0')}/${String(month).padStart(2, '0')}/${year}`;
+        activeCalendarInput.value = dateStr;
+        hideCalendar();
+    }
+
+    function showCalendar(targetInput) {
+        activeCalendarInput = targetInput;
+        const rect = targetInput.getBoundingClientRect();
+        calendarElement.style.top = `${window.scrollY + rect.bottom + 5}px`;
+        calendarElement.style.right = `${window.innerWidth - rect.right}px`;
+
+        let currentYear = 1447, currentMonth = 1, currentDay = null;
+        const currentValue = targetInput.value;
+        if (currentValue && /^\d{1,2}\/\d{1,2}\/\d{4}$/.test(currentValue)) {
+            const parts = currentValue.split('/');
+            currentDay = parseInt(parts[0], 10);
+            currentMonth = parseInt(parts[1], 10);
+            currentYear = parseInt(parts[2], 10);
+        }
+
+        renderCalendar(currentYear, currentMonth, currentDay);
+        calendarElement.style.display = 'block';
+        setTimeout(() => {
+            calendarElement.style.opacity = '1';
+            calendarElement.style.transform = 'translateY(0)';
+        }, 10);
+    }
+
+    function hideCalendar() {
+        calendarElement.style.opacity = '0';
+        calendarElement.style.transform = 'translateY(10px)';
+        setTimeout(() => {
+            calendarElement.style.display = 'none';
+            activeCalendarInput = null;
+        }, 300);
+    }
+
+    document.querySelectorAll('input[id="start_date"], input[id="end_date"]').forEach(input => {
+        input.addEventListener('click', (e) => {
+            e.stopPropagation();
+            if (activeCalendarInput === e.target) {
+                hideCalendar();
+            } else {
+                showCalendar(e.target);
+            }
+        });
+    });
+
+    document.addEventListener('click', (e) => {
+        if (activeCalendarInput && !calendarElement.contains(e.target) && e.target !== activeCalendarInput) {
+            hideCalendar();
+        }
+    });
+});
+    </script>
+</body>
+</html>

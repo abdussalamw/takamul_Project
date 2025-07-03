@@ -33,7 +33,7 @@ if (!empty($where_clauses)) {
 }
 
 // الفرز
-$sort = isset($_GET['sort']) ? $_GET['sort'] : 'الأحدث';
+$sort = isset($_GET['sort']) ? $_GET['sort'] : 'الأقرب تاريخاً';
 switch ($sort) {
     case 'الأقل سعراً':
         $sql .= " ORDER BY CAST(REGEXP_REPLACE(price, '[^0-9.]', '') AS DECIMAL)";
@@ -42,10 +42,9 @@ switch ($sort) {
         $sql .= " ORDER BY CAST(REGEXP_REPLACE(price, '[^0-9.]', '') AS DECIMAL) DESC";
         break;
     case 'الأقرب تاريخاً':
+    default:
         $sql .= " ORDER BY STR_TO_DATE(start_date, '%d/%m/%Y')";
         break;
-    default:
-        $sql .= " ORDER BY id DESC";
 }
 
 $stmt = $pdo->prepare($sql);
@@ -96,7 +95,6 @@ if (isset($_GET['ajax']) && $_GET['ajax'] == '1') {
                 <div class="filter-group">
             <h3><i class="fas fa-sort-amount-down"></i> الترتيب حسب</h3>
             <select name="sort">
-                <option value="الأحدث" <?php echo $sort === 'الأحدث' ? 'selected' : ''; ?>>الأحدث</option>
                 <option value="الأقل سعراً" <?php echo $sort === 'الأقل سعراً' ? 'selected' : ''; ?>>الأقل سعراً</option>
                 <option value="الأعلى سعراً" <?php echo $sort === 'الأعلى سعراً' ? 'selected' : ''; ?>>الأعلى سعراً</option>
                 <option value="الأقرب تاريخاً" <?php echo $sort === 'الأقرب تاريخاً' ? 'selected' : ''; ?>>الأقرب تاريخاً</option>

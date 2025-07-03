@@ -17,23 +17,34 @@
             <div class="footer-col">
                 <h3>روابط هامة</h3>
                 <ul class="footer-header-nav">
-                    <li><a href="https://whatsapp.com/channel/0029VahQ1kvLI8YTd9OMQl35" target="_blank"><i class="fab fa-whatsapp"></i> قناة الواتساب</a></li>
-                    <li><a href="/documantes/dalil1447.pdf" target="_blank" id="pdf-link-placeholder-footer"><i class="fas fa-file-pdf"></i> تحميل الدليل (PDF)</a></li>
+                    <?php if (!empty($site_settings['whatsapp_channel_footer_enabled']) && !empty($site_settings['whatsapp_channel_url'])): ?>
+                        <li><a href="<?php echo htmlspecialchars($site_settings['whatsapp_channel_url']); ?>" target="_blank"><i class="fab fa-whatsapp"></i> قناة الواتساب</a></li>
+                    <?php endif; ?>
+                    <?php if (!empty($site_settings['telegram_channel_footer_enabled']) && !empty($site_settings['telegram_channel_url'])): ?>
+                        <li><a href="<?php echo htmlspecialchars($site_settings['telegram_channel_url']); ?>" target="_blank"><i class="fab fa-telegram"></i> قناة التليجرام</a></li>
+                    <?php endif; ?>
+                    <?php if (!empty($site_settings['guide_pdf_footer_enabled']) && !empty($site_settings['guide_pdf_path'])): ?>
+                        <li><a href="<?php echo htmlspecialchars($site_settings['guide_pdf_path']); ?>" target="_blank"><i class="fas fa-file-pdf"></i> تحميل الدليل</a></li>
+                    <?php endif; ?>
                 </ul>
             </div>
 
             <div class="footer-col">
                 <h3>اتصل بنا</h3>
                 <ul class="footer-links">
-                    <li><i class="fas fa-envelope"></i> <a href="mailto:takamul15@gmail.com" style="color: #ddd; text-decoration: none;">takamul15@gmail.com</a></li>
-                    <li><i class="fas fa-phone"></i> <a href="https://wa.me/966554429920" target="_blank" style="color: #ddd; text-decoration: none;">+966554429920</a></li>
+                    <?php if (!empty($site_settings['contact_email'])): ?>
+                        <li><i class="fas fa-envelope"></i> <a href="mailto:<?php echo htmlspecialchars($site_settings['contact_email']); ?>" style="color: #ddd; text-decoration: none;"><?php echo htmlspecialchars($site_settings['contact_email']); ?></a></li>
+                    <?php endif; ?>
+                    <?php if (!empty($site_settings['contact_number'])): ?>
+                        <li><i class="fas fa-phone"></i> <a href="https://wa.me/<?php echo preg_replace('/[^0-9]/', '', $site_settings['contact_number']); ?>" target="_blank" style="color: #ddd; text-decoration: none;"><?php echo htmlspecialchars($site_settings['contact_number']); ?></a></li>
+                    <?php endif; ?>
                     <li><i class="fas fa-map-marker-alt"></i> الرياض، المملكة العربية السعودية</li>
                 </ul>
             </div>
         </div>
         
         <div class="copyright">
-            © 2024 دليل البرامج الصيفية للفتيات بمدينة الرياض. جميع الحقوق محفوظة لتكامل.
+            © <?php echo date('Y'); ?> <?php echo htmlspecialchars($site_settings['guide_name'] ?? 'دليل البرامج الصيفية'); ?>. جميع الحقوق محفوظة لتكامل.
         </div>
     </footer>
 

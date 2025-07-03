@@ -4,7 +4,7 @@ session_start();
 <html lang="ar" dir="rtl"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
     
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>دليل تكامل لبرامج الصيفية للفتيات في الرياض 1447هـ</title>
+    <title><?php echo htmlspecialchars($site_settings['guide_name'] ?? 'دليل البرامج الصيفية'); ?></title>
     <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@300;400;500;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
@@ -29,26 +29,12 @@ session_start();
             color: var(--dark);
             line-height: 1.6;
         }
-
-        .beta-banner {
-            position: fixed; /* يجعله ثابتاً في مكانه حتى عند التمرير */
-            top: 15px;       /* المسافة من الأعلى */
-            left: 15px;      /* المسافة من اليسار */
-            background-color: var(--secondary); /* استخدام اللون الثانوي من متغيراتك */
-            color: white;
-            padding: 6px 12px; /* حشوة داخلية */
-            font-size: 0.85rem; /* حجم الخط */
-            font-weight: 700;   /* وزن الخط */
-            border-radius: 4px; /* تدوير الحواف */
-            z-index: 1001;      /* لضمان ظهوره فوق الهيدر (الهيدر z-index: 1000) */
-            box-shadow: 0 2px 5px rgba(0,0,0,0.15); /* ظل خفيف */
-        }
         
         /* Header Styles */
         header {
             background: linear-gradient(120deg, var(--primary), #5c1d9c);
             color: white;
-            padding: 1rem 0;
+            padding: 1.2rem 0; /* زيادة طفيفة في ارتفاع الشريط العلوي */
             box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
             position: sticky;
             top: 0;
@@ -67,24 +53,29 @@ session_start();
         .logo {
             display: flex;
             align-items: center;
-            gap: 60px; /* تمت زيادة المسافة بشكل أكبر بين الشعار والنص */
+            gap: 20px;
         }
         
         .logo-image {
-            width: 140px; /* تمت مضاعفة حجم الشعار */
-            height: 140px; /* تمت مضاعفة حجم الشعار */
+            width: 80px;
+            height: 80px;
             object-fit: contain; /* للحفاظ على أبعاد الصورة وعدم تشويهها */
+            border-radius: 8px;
         }
         
         .logo-text {
-            font-size: 1.8rem;
+            font-size: 1.8rem; /* الخط الكبير العريض */
             font-weight: 800;
             letter-spacing: -0.5px;
+            line-height: 1.2;
         }
         
         .logo-subtext {
-            font-size: 0.9rem;
+            font-size: 0.9rem; /* الخط الأصغر الخفيف */
+            font-weight: 400;
             opacity: 0.9;
+            line-height: 1.2;
+            margin-top: 12px; /* تمت زيادة المسافة بين السطرين بشكل أكبر */
         }
         
         nav ul {
@@ -106,7 +97,7 @@ session_start();
         }
 
         nav a i { /* استهداف الأيقونات داخل روابط التنقل */
-            font-size: 1.8rem; /*  زيادة حجم الأيقونة بشكل كبير - يمكنك تعديل هذه القيمة  */
+            font-size: 1.6rem; /* زيادة حجم الأيقونة */
         }
         
         nav a:hover, nav a.active {
@@ -742,19 +733,28 @@ session_start();
 <body>
     <header>
         <div class="header-container">
-            <a href="/index.php" class="logo-link">
+            <a href="index.php" class="logo-link">
                 <div class="logo">
-                    <img src="https://i.postimg.cc/sxNCrL6d/logo-white-03.png" alt="شعار" class="logo-image">
+                    <img src="<?php echo htmlspecialchars($site_settings['logo_path'] ?? 'assets/img/default-logo.png'); ?>" alt="شعار" class="logo-image">
                     <div>
-                        <div class="logo-text">دليل البرامج الصيفية</div>
-                        <div class="logo-subtext">للفتيات في مدينة الرياض 1447هـ</div>
+                        <div class="logo-text"><?php echo htmlspecialchars($site_settings['guide_name'] ?? 'دليل البرامج الصيفية'); ?></div>
+                        <?php if (!empty($site_settings['guide_subtitle'])): ?>
+                            <div class="logo-subtext"><?php echo htmlspecialchars($site_settings['guide_subtitle']); ?></div>
+                        <?php endif; ?>
                     </div>
                 </div>
             </a>
             <nav>
                 <ul>
-                    <li><a href="https://whatsapp.com/channel/0029VahQ1kvLI8YTd9OMQl35" target="_blank"><i class="fab fa-whatsapp"></i> قناة الواتساب</a></li>
-                    <li><a href="/documantes/dalil1447.pdf" target="_blank" id="pdf-link-placeholder-footer"><i class="fas fa-file-pdf"></i> تحميل الدليل (PDF)</a></li>
+                    <?php if (!empty($site_settings['whatsapp_channel_header_enabled']) && !empty($site_settings['whatsapp_channel_url'])): ?>
+                        <li><a href="<?php echo htmlspecialchars($site_settings['whatsapp_channel_url']); ?>" target="_blank"><i class="fab fa-whatsapp"></i> قناة الواتساب</a></li>
+                    <?php endif; ?>
+                    <?php if (!empty($site_settings['telegram_channel_header_enabled']) && !empty($site_settings['telegram_channel_url'])): ?>
+                        <li><a href="<?php echo htmlspecialchars($site_settings['telegram_channel_url']); ?>" target="_blank"><i class="fab fa-telegram"></i> قناة التليجرام</a></li>
+                    <?php endif; ?>
+                    <?php if (!empty($site_settings['guide_pdf_header_enabled']) && !empty($site_settings['guide_pdf_path'])): ?>
+                        <li><a href="<?php echo htmlspecialchars($site_settings['guide_pdf_path']); ?>" target="_blank"><i class="fas fa-file-pdf"></i> تحميل الدليل</a></li>
+                    <?php endif; ?>
                 </ul>
             </nav>
         </div>

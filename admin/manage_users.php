@@ -35,15 +35,25 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_permissions'])
         $error = "لا يمكنك تعديل صلاحياتك الخاصة لتجنب فقدان الوصول.";
     } else {
         try {
-            $can_manage_users = isset($_POST['can_manage_users']) ? 1 : 0;
-            $can_add_programs = isset($_POST['can_add_programs']) ? 1 : 0;
-            $can_edit_programs = isset($_POST['can_edit_programs']) ? 1 : 0;
-            $can_delete_programs = isset($_POST['can_delete_programs']) ? 1 : 0;
+            // Get all permission columns dynamically to build the query
+            $perm_stmt = $pdo->query("SHOW COLUMNS FROM users LIKE 'can_%'");
+            $permission_columns = $perm_stmt->fetchAll(PDO::FETCH_COLUMN);
 
-            $stmt = $pdo->prepare("UPDATE users SET can_manage_users = ?, can_add_programs = ?, can_edit_programs = ?, can_delete_programs = ? WHERE id = ?");
-            $stmt->execute([$can_manage_users, $can_add_programs, $can_edit_programs, $can_delete_programs, $user_id_to_update]);
-            
-            $success = "تم تحديث الصلاحيات بنجاح.";
+            $update_parts = [];
+            $params = [];
+
+            foreach ($permission_columns as $perm_col) {
+                $update_parts[] = "`$perm_col` = ?";
+                $params[] = isset($_POST[$perm_col]) ? 1 : 0;
+            }
+
+            if (!empty($update_parts)) {
+                $params[] = $user_id_to_update; // Add user ID for the WHERE clause
+                $sql = "UPDATE users SET " . implode(', ', $update_parts) . " WHERE id = ?";
+                $stmt = $pdo->prepare($sql);
+                $stmt->execute($params);
+                $success = "تم تحديث الصلاحيات بنجاح.";
+            }
         } catch (PDOException $e) {
             // In production, log the detailed error and show a generic message.
             $error = "حدث خطأ في قاعدة البيانات. يرجى المحاولة مرة أخرى.";
@@ -64,8 +74,21 @@ if (isset($_GET['status'])) {
 }
 
 // Fetch all users
-$users = $pdo->query("SELECT id, username, can_manage_users, can_add_programs, can_edit_programs, can_delete_programs FROM users ORDER BY username")->fetchAll(PDO::FETCH_ASSOC);
+$users = $pdo->query("SELECT * FROM users ORDER BY username")->fetchAll(PDO::FETCH_ASSOC);
 
+// Fetch all permission columns dynamically for table display
+$perm_stmt = $pdo->query("SHOW COLUMNS FROM users LIKE 'can_%'");
+$permission_columns = $perm_stmt->fetchAll(PDO::FETCH_COLUMN);
+
+// Translation array for permission names for a user-friendly display
+$permission_translations = [
+    'can_manage_users' => 'إدارة المستخدمين',
+    'can_add_programs' => 'إضافة برامج',
+    'can_edit_programs' => 'تعديل برامج',
+    'can_delete_programs' => 'حذف برامج',
+    'can_manage_settings' => 'إدارة الإعدادات',
+    'can_publish_programs' => 'نشر البرامج',
+];
 ?>
 
 <html lang="ar" dir="rtl">
@@ -221,10 +244,9 @@ $users = $pdo->query("SELECT id, username, can_manage_users, can_add_programs, c
                     <thead>
                         <tr>
                             <th>اسم المستخدم</th>
-                            <th>إدارة المستخدمين</th>
-                            <th>إضافة برامج</th>
-                            <th>تعديل برامج</th>
-                            <th>حذف برامج</th>
+                            <?php foreach ($permission_columns as $perm_col): ?>
+                                <th><?php echo htmlspecialchars($permission_translations[$perm_col] ?? ucfirst(str_replace(['can_', '_'], ['', ' '], $perm_col))); ?></th>
+                            <?php endforeach; ?>
                             <th>إجراءات</th>
                         </tr>
                     </thead>
@@ -242,18 +264,9 @@ $users = $pdo->query("SELECT id, username, can_manage_users, can_add_programs, c
                                         <?php endif; ?>
                                     </td>
                                     <input type="hidden" name="user_id" value="<?php echo $user['id']; ?>">
-                                    <td>
-                                        <input type="checkbox" class="permission-checkbox" name="can_manage_users" id="manage_<?php echo $user['id']; ?>" <?php if($user['can_manage_users']) echo 'checked'; ?> <?php if($is_current_user) echo 'disabled'; ?>>
-                                    </td>
-                                    <td>
-                                        <input type="checkbox" class="permission-checkbox" name="can_add_programs" id="add_<?php echo $user['id']; ?>" <?php if($user['can_add_programs']) echo 'checked'; ?> <?php if($is_current_user) echo 'disabled'; ?>>
-                                    </td>
-                                    <td>
-                                        <input type="checkbox" class="permission-checkbox" name="can_edit_programs" id="edit_<?php echo $user['id']; ?>" <?php if($user['can_edit_programs']) echo 'checked'; ?> <?php if($is_current_user) echo 'disabled'; ?>>
-                                    </td>
-                                    <td>
-                                        <input type="checkbox" class="permission-checkbox" name="can_delete_programs" id="delete_<?php echo $user['id']; ?>" <?php if($user['can_delete_programs']) echo 'checked'; ?> <?php if($is_current_user) echo 'disabled'; ?>>
-                                    </td>
+                                    <?php foreach ($permission_columns as $perm_col): ?>
+                                        <td><input type="checkbox" class="permission-checkbox" name="<?php echo $perm_col; ?>" id="<?php echo $perm_col . '_' . $user['id']; ?>" <?php if(!empty($user[$perm_col])) echo 'checked'; ?> <?php if($is_current_user) echo 'disabled'; ?>></td>
+                                    <?php endforeach; ?>
                                     <td>
                                         <div class="action-cell">
                                         <?php if (!$is_current_user): ?>

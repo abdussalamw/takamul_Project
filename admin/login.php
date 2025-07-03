@@ -20,7 +20,8 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
         $debug['db_connection'] = $pdo ? 'Connected' : 'Failed';
 
         // Prepare and execute SQL query
-        $stmt = $pdo->prepare("SELECT id, username, password, can_manage_users, can_add_programs, can_edit_programs, can_delete_programs FROM users WHERE LOWER(username) = LOWER(?)");
+        // Fetch all columns to dynamically load permissions
+        $stmt = $pdo->prepare("SELECT * FROM users WHERE LOWER(username) = LOWER(?)");
         $debug['query_prepared'] = $stmt ? true : false;
 
         $stmt->execute([$username]);
@@ -39,13 +40,15 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
 
             $_SESSION['admin_id'] = $user['id'];
             $_SESSION['username'] = $user['username'];
-            // Store permissions in the session
-            $_SESSION['permissions'] = [
-                'can_manage_users' => (bool)$user['can_manage_users'],
-                'can_add_programs' => (bool)$user['can_add_programs'],
-                'can_edit_programs' => (bool)$user['can_edit_programs'],
-                'can_delete_programs' => (bool)$user['can_delete_programs'],
-            ];
+            
+            // Dynamically load all permissions into the session
+            $_SESSION['permissions'] = [];
+            foreach ($user as $key => $value) {
+                // If the column name starts with 'can_', treat it as a permission
+                if (str_starts_with($key, 'can_')) {
+                    $_SESSION['permissions'][$key] = (bool)$value;
+                }
+            }
 
             $debug['session_set'] = ['admin_id' => $user['id'], 'username' => $user['username'], 'permissions' => $_SESSION['permissions']];
             header('Location: dashboard.php');
@@ -112,7 +115,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
         header {
             background: linear-gradient(120deg, var(--primary), #5c1d9c);
             color: white;
-            padding: 1rem 0;
+            padding: 0.5rem 0;
             box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
             position: sticky;
             top: 0;

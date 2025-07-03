@@ -584,6 +584,9 @@ try {
             <div class="dashboard-header">
                 <h2><i class="fas fa-cogs"></i> إدارة البرامج</h2>
                 <div style="display: flex; gap: 1rem; align-items: center;">
+                    <?php if (isset($_SESSION['permissions']['can_manage_settings']) && $_SESSION['permissions']['can_manage_settings']): ?>
+                        <a href="site_settings.php" class="add-program-btn" style="background-color: var(--secondary);"><i class="fas fa-cogs"></i> إعدادات الموقع</a>
+                    <?php endif; ?>
                     <?php if (isset($_SESSION['permissions']['can_manage_users']) && $_SESSION['permissions']['can_manage_users']): ?>
                         <a href="manage_users.php" class="add-program-btn" style="background-color: var(--accent);"><i class="fas fa-users-cog"></i> إدارة المستخدمين</a>
                     <?php endif; ?>
