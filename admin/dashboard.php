@@ -834,6 +834,9 @@ $csrf_token = $_SESSION['csrf_token'];
                     <?php if (isset($_SESSION['permissions']['can_manage_settings']) && $_SESSION['permissions']['can_manage_settings']): ?>
                         <a href="site_settings.php" class="add-program-btn" style="background-color: var(--secondary);"><i class="fas fa-cogs"></i> إعدادات الموقع</a>
                     <?php endif; ?>
+                    
+                    <!-- New Map Button -->
+                    <a href="../programs_map.php" target="_blank" class="add-program-btn" style="background-color: #fd7e14;"><i class="fas fa-map-marked-alt"></i> عرض الخريطة العامة</a>
                 </div>
                 <div class="filter-actions">
                     <div class="search-bar-container">

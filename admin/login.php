@@ -93,23 +93,6 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             color: var(--dark);
             line-height: 1.6;
             min-height: 100vh;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-        }
-
-        .beta-banner {
-            position: fixed;
-            top: 15px;
-            left: 15px;
-            background-color: var(--secondary);
-            color: white;
-            padding: 6px 12px;
-            font-size: 0.85rem;
-            font-weight: 700;
-            border-radius: 4px;
-            z-index: 1001;
-            box-shadow: 0 2px 5px rgba(0,0,0,0.15);
         }
 
         header {
@@ -135,24 +118,31 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
         .logo {
             display: flex;
             align-items: center;
-            gap: 60px;
+            gap: 15px;
         }
 
         .logo-image {
-            width: 140px;
-            height: 140px;
+            width: 60px;
+            height: 60px;
             object-fit: contain;
         }
 
         .logo-text {
-            font-size: 1.8rem;
+            font-size: 1.5rem;
             font-weight: 800;
-            letter-spacing: -0.5px;
         }
 
-        .logo-subtext {
-            font-size: 0.9rem;
-            opacity: 0.9;
+        .page-title-header {
+            display: flex;
+            align-items: center;
+            font-size: 1.1rem;
+            font-weight: 700;
+        }
+
+        .page-title-header i {
+            margin-left: 10px;
+            color: var(--accent);
+            font-size: 1.2rem;
         }
 
         nav ul {
@@ -170,20 +160,16 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             transition: all 0.3s ease;
             display: flex;
             align-items: center;
-            gap: 12px;
+            gap: 8px;
         }
 
-        nav a i {
-            font-size: 1.8rem;
-        }
-
-        nav a:hover, nav a.active {
+        nav a:hover {
             background: rgba(255, 255, 255, 0.15);
         }
 
         .login-section {
             max-width: 450px;
-            margin: 40px auto;
+            margin: 80px auto; /* Increased margin from top */
             padding: 20px;
             animation: fadeIn 0.8s ease-out;
         }
@@ -195,11 +181,12 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             padding: 2rem;
             text-align: center;
             transform: scale(1);
-            transition: transform 0.3s ease;
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
         }
 
         .login-card:hover {
-            transform: scale(1.02);
+            transform: scale(1.01);
+            box-shadow: 0 12px 25px rgba(0, 0, 0, 0.15);
         }
 
         .login-card h2 {
@@ -329,78 +316,6 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
         }
 
         @media (max-width: 768px) {
-            .header-container {
-                flex-direction: column;
-                padding: 0 10px;
-                gap: 5px;
-            }
-
-            header {
-                padding: 5px 0;
-                max-height: 20vh;
-                overflow: hidden;
-                display: flex;
-                align-items: center;
-                justify-content: center;
-            }
-
-            .logo {
-                gap: 8px;
-                flex-shrink: 1;
-                min-width: 0;
-                align-items: center;
-            }
-
-            .logo-image {
-                width: 35px;
-                height: 35px;
-            }
-
-            .logo-text {
-                font-size: 1rem;
-                white-space: nowrap;
-                overflow: hidden;
-                text-overflow: ellipsis;
-            }
-
-            .logo-subtext {
-                font-size: 0.65rem;
-                white-space: nowrap;
-                overflow: hidden;
-                text-overflow: ellipsis;
-            }
-
-            nav {
-                flex-shrink: 0;
-                display: flex;
-                align-items: center;
-                justify-content: center;
-                width: 100%;
-            }
-
-            nav ul {
-                flex-direction: row;
-                flex-wrap: nowrap;
-                align-items: center;
-                padding: 0;
-                margin: 0;
-                gap: 5px;
-                justify-content: center;
-            }
-
-            nav a {
-                flex-direction: column;
-                align-items: center;
-                text-align: center;
-                padding: 5px 3px;
-                gap: 2px;
-                font-size: 0.7rem;
-            }
-
-            nav a i {
-                font-size: 1.1rem;
-            }
-
             .login-section {
                 margin: 20px;
                 padding: 15px;
@@ -410,45 +325,22 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                 padding: 20px;
             }
         }
-
-        @media (max-width: 576px) {
-            nav ul {
-                flex-wrap: wrap;
-                justify-content: flex-start;
-            }
-
-            .login-card h2 {
-                font-size: 1.5rem;
-            }
-
-            .login-form input {
-                padding: 10px 15px;
-                font-size: 0.9rem;
-            }
-
-            .login-btn {
-                padding: 10px;
-                font-size: 0.9rem;
-            }
-        }
     </style>
 </head>
 <body>
-    <div class="beta-banner">إطلاق تجريبي</div>
     <header>
         <div class="header-container">
             <div class="logo">
                 <img src="https://i.postimg.cc/sxNCrL6d/logo-white-03.png" alt="شعار" class="logo-image">
-                <div>
-                    <div class="logo-text">دليل البرامج الصيفية</div>
-                    <div class="logo-subtext">للفتيات في مدينة الرياض 1447هـ</div>
-                </div>
+                <div class="logo-text">دليل البرامج الصيفية</div>
+            </div>
+            <div class="page-title-header">
+                <i class="fas fa-sign-in-alt"></i>
+                <span>تسجيل الدخول</span>
             </div>
             <nav>
                 <ul>
-                    <li><a href="https://whatsapp.com/channel/0029VahQ1kvLI8YTd9OMQl35" target="_blank"><i class="fab fa-whatsapp"></i> قناة الواتساب</a></li>
-                    <li><a href="#" id="telegram-link-placeholder"><i class="fab fa-telegram"></i> قناة التليجرام</a></li>
-                    <li><a href="#" id="pdf-link-placeholder"><i class="fas fa-file-pdf"></i> تحميل الدليل (PDF)</a></li>
+                    <li><a href="../index.php"><i class="fas fa-home"></i> العودة للموقع</a></li>
                 </ul>
             </nav>
         </div>

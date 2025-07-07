@@ -14,22 +14,8 @@ $success = null;
 // Start session for CSRF token
 session_start();
 
-/**
- * Fetches all settings from the database.
- * @param PDO $pdo The database connection object.
- * @return array An array of settings.
- */
-function get_all_settings($pdo) {
-    $settings = [];
-    try {
-        $stmt = $pdo->query("SELECT setting_key, setting_value FROM site_settings");
-        while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
-            $settings[$row['setting_key']] = $row['setting_value'];
-        }
-    } catch (PDOException $e) { /* Silently fail on public page */ }
-    return $settings;
-}
-$site_settings = get_all_settings($pdo);
+// The $site_settings variable is already loaded globally from db_connect.php
+// No need to redefine the function or call it again here.
 
 // Generate CSRF token if not already set
 if (empty($_SESSION['csrf_token'])) {

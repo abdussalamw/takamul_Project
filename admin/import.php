@@ -33,6 +33,21 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
         $error = "فشل التحقق من الطلب (CSRF).";
     } elseif (isset($_FILES['excel_file']) && $_FILES['excel_file']['error'] === UPLOAD_ERR_OK) {
         $file_tmp_path = $_FILES['excel_file']['tmp_name'];
+        $file_name = $_FILES['excel_file']['name'];
+
+        // --- Server-side File Validation ---
+        $allowed_extensions = ['xlsx'];
+        $file_extension = strtolower(pathinfo($file_name, PATHINFO_EXTENSION));
+        
+        // A more robust check using MIME type is better if fileinfo extension is enabled
+        $finfo = finfo_open(FILEINFO_MIME_TYPE);
+        $file_mime_type = finfo_file($finfo, $file_tmp_path);
+        finfo_close($finfo);
+        $allowed_mime_type = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
+
+        if (!in_array($file_extension, $allowed_extensions) || $file_mime_type !== $allowed_mime_type) {
+            $error = "نوع الملف غير صالح. يرجى رفع ملف بصيغة .xlsx فقط. 🚫";
+        } else {
         
         try {
             $spreadsheet = IOFactory::load($file_tmp_path);
@@ -113,6 +128,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                 $pdo->rollBack();
             }
         }
+        } // End of file validation else block
     } else {
         $error = "يرجى اختيار ملف إكسل لرفعه.";
     }
@@ -125,23 +141,115 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     <title><?php echo $page_title_text; ?> 📥</title>
     <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@300;400;500;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <link rel="stylesheet" href="assets/css/admin_style.css"> <!-- Assuming a shared admin style -->
+    <!-- The new beautiful styles -->
     <style>
-        .import-card { background: white; border-radius: 20px; box-shadow: 0 8px 20px rgba(0,0,0,0.1); padding: 2.5rem; }
-        .import-card h2 { color: var(--primary); margin-bottom: 1.5rem; }
-        .instructions { background-color: #f8f9fa; border-right: 4px solid var(--accent); padding: 15px; margin-bottom: 20px; border-radius: 8px; }
-        .instructions h4 { margin-top: 0; }
-        .instructions ul { padding-right: 20px; }
-        .upload-form { display: flex; align-items: center; gap: 1rem; }
-        .upload-form input[type="file"] { border: 2px dashed #ccc; padding: 20px; border-radius: 10px; flex-grow: 1; }
-        .upload-form button { background: var(--primary); color: white; border: none; padding: 12px 20px; border-radius: 10px; font-weight: 600; cursor: pointer; }
-        .summary { margin-top: 2rem; padding-top: 1.5rem; border-top: 1px solid #eee; }
-        .summary .success { color: var(--success); }
-        .summary .error { color: var(--secondary); }
-        .summary ul { max-height: 200px; overflow-y: auto; background: #f8f9fa; padding: 10px; border-radius: 5px; }
+        :root { 
+            --primary: #8a2be2; 
+            --secondary: #ff6b6b; 
+            --accent: #4ecdc4; 
+            --light: #f8f9fa; 
+            --dark: #212529; 
+            --success: #28a745; 
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { 
+            font-family: 'Tajawal', sans-serif; 
+            background: linear-gradient(135deg, #f5f7fa 0%, #e4e7f1 100%); 
+            color: var(--dark); 
+            line-height: 1.6;
+            min-height: 100vh;
+        }
+        header {
+            background: linear-gradient(120deg, var(--primary), #5c1d9c);
+            color: white;
+            padding: 0.5rem 0;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+            position: sticky;
+            top: 0;
+            z-index: 1000;
+            width: 100%;
+        }
+        .header-container {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 0 20px;
+        }
+        .logo { display: flex; align-items: center; gap: 15px; }
+        .logo-image { width: 60px; height: 60px; object-fit: contain; }
+        .logo-text { font-size: 1.5rem; font-weight: 800; }
+        .page-title-header { display: flex; align-items: center; font-size: 1.1rem; font-weight: 700; }
+        .page-title-header i { margin-left: 10px; color: var(--accent); font-size: 1.2rem; }
+        nav ul { display: flex; list-style: none; gap: 20px; }
+        nav a { color: white; text-decoration: none; font-weight: 500; padding: 10px 20px; border-radius: 30px; transition: all 0.3s ease; display: flex; align-items: center; gap: 8px; }
+        nav a:hover { background: rgba(255, 255, 255, 0.15); }
+        
+        .import-section { max-width: 800px; width: 100%; margin: 40px auto; padding: 20px; }
+        .import-card { background: white; border-radius: 20px; box-shadow: 0 8px 20px rgba(0,0,0,0.1); padding: 2.5rem; text-align: right; }
+        .import-card h2 {
+            color: var(--primary);
+            font-size: 1.8rem;
+            margin-bottom: 2rem;
+            position: relative;
+            padding-bottom: 10px;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+        .import-card h2::after {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            right: 0;
+            width: 60px;
+            height: 3px;
+            background: var(--secondary);
+            border-radius: 2px;
+        }
         .message { padding: 15px; margin-bottom: 20px; border-radius: 8px; font-weight: 500; text-align: center; }
         .message.success { background-color: #d4edda; color: #155724; }
         .message.error { background-color: #f8d7da; color: #721c24; }
+
+        .instructions {
+            background-color: #f8f9fa;
+            border-right: 4px solid var(--accent);
+            padding: 1.5rem;
+            margin: 2rem 0;
+            border-radius: 8px;
+        }
+        .instructions h4 { margin-top: 0; color: var(--dark); font-size: 1.2rem; margin-bottom: 1rem; }
+        .instructions ul { padding-right: 20px; list-style-type: '✓ '; }
+        .instructions ul li { margin-bottom: 0.5rem; }
+
+        .upload-form { margin-top: 2rem; }
+        .file-upload-wrapper {
+            border: 3px dashed #ccc;
+            border-radius: 15px;
+            padding: 2rem;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            position: relative;
+        }
+        .file-upload-wrapper:hover { border-color: var(--primary); background-color: #fdfaff; }
+        .file-upload-wrapper input[type="file"] { display: none; }
+        .file-upload-label { font-size: 1.1rem; color: #555; font-weight: 500; }
+        .file-upload-label i { font-size: 2.5rem; color: var(--primary); display: block; margin-bottom: 1rem; }
+        #file-name-display { margin-top: 1rem; font-weight: bold; color: var(--accent); }
+
+        .upload-btn { background: var(--primary); color: white; border: none; padding: 12px 25px; border-radius: 10px; font-weight: 600; cursor: pointer; transition: all 0.3s ease; font-size: 1.1rem; margin-top: 1.5rem; width: 100%; }
+        .upload-btn:hover { background: #7a1fc2; transform: translateY(-2px); }
+        .upload-btn:disabled { background: #ccc; cursor: not-allowed; transform: none; }
+
+        .summary { margin-top: 2.5rem; padding-top: 2rem; border-top: 1px solid #eee; }
+        .summary h4 { font-size: 1.2rem; margin-bottom: 1rem; }
+        .summary .success { color: var(--success); }
+        .summary .error { color: var(--secondary); }
+        .summary ul { max-height: 200px; overflow-y: auto; background: #f8f9fa; padding: 15px; border-radius: 8px; border: 1px solid #e9ecef; list-style-position: inside; }
+        .summary ul li { padding: 5px; border-bottom: 1px solid #e9ecef; }
+        .summary ul li:last-child { border-bottom: none; }
     </style>
 </head>
 <body>
@@ -163,10 +271,10 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             </nav>
         </div>
     </header>
-    <section class="dashboard-section">
+    <section class="import-section">
         <div class="import-card">
-            <h2><i class="fas fa-file-import"></i> استيراد برامج من ملف إكسل</h2>
-
+            <h2><i class="fas fa-file-excel"></i> استيراد برامج من ملف إكسل</h2>
+            
             <?php if ($success): ?><div class="message success"><?php echo $success; ?></div><?php endif; ?>
             <?php if ($error): ?><div class="message error"><?php echo $error; ?></div><?php endif; ?>
 
@@ -174,8 +282,8 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             <div class="summary">
                 <h4>ملخص عملية الاستيراد:</h4>
                 <p><strong class="success">تم استيراد <?php echo $import_summary['imported']; ?> برنامج بنجاح.</strong></p>
-                <p><strong class="error">فشل استيراد <?php echo $import_summary['failed']; ?> برنامج.</strong></p>
                 <?php if (!empty($import_summary['errors'])): ?>
+                    <p><strong class="error">فشل استيراد <?php echo $import_summary['failed']; ?> برنامج.</strong></p>
                     <p>تفاصيل الأخطاء:</p>
                     <ul>
                         <?php foreach ($import_summary['errors'] as $err): ?>
@@ -199,10 +307,35 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
 
             <form method="POST" enctype="multipart/form-data" class="upload-form">
                 <input type="hidden" name="csrf_token" value="<?php echo htmlspecialchars($csrf_token); ?>">
-                <input type="file" name="excel_file" required accept=".xlsx, application/vnd.openxmlformats-officedocument.spreadsheetml.sheet">
-                <button type="submit"><i class="fas fa-upload"></i> رفع واستيراد</button>
+                <div class="file-upload-wrapper">
+                    <input type="file" name="excel_file" id="excel_file" required accept=".xlsx, application/vnd.openxmlformats-officedocument.spreadsheetml.sheet">
+                    <label for="excel_file" class="file-upload-label">
+                        <i class="fas fa-cloud-upload-alt"></i>
+                        <span>اسحب الملف إلى هنا أو انقر للاختيار</span>
+                    </label>
+                    <div id="file-name-display"></div>
+                </div>
+                <button type="submit" class="upload-btn" id="upload-btn" disabled><i class="fas fa-upload"></i> رفع واستيراد</button>
             </form>
         </div>
     </section>
+
+    <script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const fileInput = document.getElementById('excel_file');
+        const fileNameDisplay = document.getElementById('file-name-display');
+        const uploadBtn = document.getElementById('upload-btn');
+
+        fileInput.addEventListener('change', function() {
+            if (fileInput.files.length > 0) {
+                fileNameDisplay.textContent = `الملف المختار: ${fileInput.files[0].name}`;
+                uploadBtn.disabled = false;
+            } else {
+                fileNameDisplay.textContent = '';
+                uploadBtn.disabled = true;
+            }
+        });
+    });
+    </script>
 </body>
 </html>

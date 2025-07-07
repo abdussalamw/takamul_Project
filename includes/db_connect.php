@@ -1,4 +1,19 @@
 <?php
+// --- Production vs. Development Environment ---
+// Set this to 'development' to see detailed errors.
+// Set this to 'production' to hide detailed errors for security.
+define('ENVIRONMENT', 'production'); 
+
+if (ENVIRONMENT === 'development') {
+    ini_set('display_errors', 1);
+    ini_set('display_startup_errors', 1);
+    error_reporting(E_ALL);
+} else {
+    ini_set('display_errors', 0);
+    ini_set('display_startup_errors', 0);
+    error_reporting(0);
+}
+
 $host = 'localhost';
 $db = 'takamul';
 $user = 'root';
@@ -8,7 +23,9 @@ try {
     $pdo = new PDO("mysql:host=$host;dbname=$db;charset=utf8", $user, $pass);
     $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
 } catch (PDOException $e) {
-    die("Connection failed: " . $e->getMessage());
+    // On production, log the error and show a generic message.
+    // error_log("Database Connection Failed: " . $e->getMessage());
+    die("عذراً، حدث خطأ أثناء الاتصال بالنظام. يرجى المحاولة لاحقاً.");
 }
 
 /**
