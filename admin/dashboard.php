@@ -18,14 +18,145 @@ if (!isset($_SESSION['admin_id'])) {
 
 // --- Fetch Statistics ---
 try {
-    $total_programs = $pdo->query("SELECT COUNT(*) FROM programs")->fetchColumn();
     $total_sections = $pdo->query("SELECT COUNT(DISTINCT Direction) FROM programs WHERE Direction IS NOT NULL AND Direction != ''")->fetchColumn();
-    $free_programs = $pdo->query("SELECT COUNT(*) FROM programs WHERE price = '0' OR LOWER(TRIM(price)) IN ('مجاني', 'مجاناً')")->fetchColumn();
+    $total_organizers = $pdo->query("SELECT COUNT(DISTINCT organizer) FROM programs WHERE organizer IS NOT NULL AND organizer != ''")->fetchColumn();
+    
+    // New stats for the review/publish workflow
+    $pending_review = $pdo->query("SELECT COUNT(*) FROM programs WHERE status = 'pending'")->fetchColumn();
+    $pending_publish = $pdo->query("SELECT COUNT(*) FROM programs WHERE status = 'reviewed'")->fetchColumn();
+    $published_programs = $pdo->query("SELECT COUNT(*) FROM programs WHERE status = 'published'")->fetchColumn();
     
     // Fetch distinct directions for the filter dropdown
     $directions = $pdo->query("SELECT DISTINCT Direction FROM programs WHERE Direction IS NOT NULL AND Direction != '' ORDER BY Direction")->fetchAll(PDO::FETCH_COLUMN);
 } catch (PDOException $e) {
-    $total_programs = $total_sections = $free_programs = 0; // Default values on error
+    // Default values on error
+    $total_sections = $total_organizers = $pending_review = $pending_publish = $published_programs = 0;
+}
+
+// --- Helper function to render the status cell ---
+function render_status_cell($program, $csrf_token) {
+    // Determine if the current user can interact with the badge
+    $is_interactive = false;
+    if ($program['status'] === 'pending' && !empty($_SESSION['permissions']['can_review_programs'])) {
+        $is_interactive = true;
+    } elseif (($program['status'] === 'reviewed' || $program['status'] === 'published') && !empty($_SESSION['permissions']['can_publish_programs'])) {
+        $is_interactive = true;
+    }
+
+    // Determine badge text and class
+    $status_text = '';
+    $status_class = '';
+    switch ($program['status']) {
+        case 'published': $status_text = 'منشور'; $status_class = 'status-published'; break;
+        case 'pending': $status_text = 'قيد المراجعة'; $status_class = 'status-pending'; break;
+        case 'rejected': $status_text = 'مرفوض'; $status_class = 'status-rejected'; break;
+        case 'reviewed': $status_text = 'تمت المراجعة'; $status_class = 'status-reviewed'; break;
+        default: $status_text = htmlspecialchars($program['status']); break;
+    }
+
+    ob_start(); // Start output buffering to capture the HTML
+    ?>
+    <div class="status-cell-wrapper" data-program-id="<?php echo $program['id']; ?>">
+        <?php
+        // Determine next status for the main badge click
+        $next_status_badge = null;
+        if ($program['status'] === 'pending') $next_status_badge = 'reviewed';
+        if ($program['status'] === 'reviewed') $next_status_badge = 'published';
+        if ($program['status'] === 'published') $next_status_badge = 'reviewed'; // Unpublish action
+
+        // Determine next status for the reject/revert button
+        $next_status_revert = null;
+        $can_revert = false;
+        // A user with either review or publish permission can interact with this button
+        if (!empty($_SESSION['permissions']['can_review_programs']) || !empty($_SESSION['permissions']['can_publish_programs'])) {
+            if (in_array($program['status'], ['reviewed', 'published'])) {
+                $can_revert = true;
+                $next_status_revert = 'pending'; // Action is to revert to pending
+            } elseif ($program['status'] === 'pending') {
+                $can_revert = true;
+                $next_status_revert = 'rejected'; // Action is to reject
+            }
+        }
+
+        if ($is_interactive && $next_status_badge):
+        ?>
+            <form method="POST" class="status-toggle-form" style="display: inline-block;">
+                <input type="hidden" name="csrf_token" value="<?php echo htmlspecialchars($csrf_token); ?>">
+                <input type="hidden" name="program_id" value="<?php echo $program['id']; ?>">
+                <input type="hidden" name="new_status" value="<?php echo $next_status_badge; ?>">
+                <button type="submit" class="status-badge <?php echo $status_class; ?> interactive" title="اضغط لتغيير الحالة">
+                    <?php echo $status_text; ?>
+                </button>
+            </form>
+        <?php else: ?>
+            <span class="status-badge <?php echo $status_class; ?>"><?php echo $status_text; ?></span>
+        <?php endif; ?>
+
+        <?php if ($can_revert && $next_status_revert): ?>
+            <form method="POST" class="status-toggle-form" style="display: inline-block;">
+                <input type="hidden" name="csrf_token" value="<?php echo htmlspecialchars($csrf_token); ?>">
+                <input type="hidden" name="program_id" value="<?php echo $program['id']; ?>">
+                <input type="hidden" name="new_status" value="<?php echo $next_status_revert; ?>">
+                <button type="submit" class="revert-btn" title="<?php echo ($next_status_revert === 'rejected') ? 'رفض البرنامج' : 'إعادة للمراجعة'; ?>">
+                    <i class="fas fa-times-circle"></i>
+                </button>
+            </form>
+        <?php endif; ?>
+    </div>
+    <?php
+    return ob_get_clean(); // Return the captured HTML
+}
+
+// --- Handle Quick Status Update via AJAX ---
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && (isset($_POST['new_status']))) {
+    header('Content-Type: application/json');
+    $response = [];
+
+    if (empty($_POST['csrf_token']) || !hash_equals($_SESSION['csrf_token'], $_POST['csrf_token'])) {
+        $response = ['status' => 'error', 'message' => 'فشل التحقق من الطلب (CSRF).'];
+    } elseif (!($program_id = filter_input(INPUT_POST, 'program_id', FILTER_VALIDATE_INT))) {
+        $response = ['status' => 'error', 'message' => 'معرف البرنامج غير صالح.'];
+    } else {
+        try {
+            $new_status = $_POST['new_status'];
+            $allowed_statuses = ['published', 'reviewed', 'rejected', 'pending'];
+            $error_permission = null;
+
+            // More granular permission check
+            if ($new_status == 'reviewed' && empty($_SESSION['permissions']['can_review_programs'])) $error_permission = "ليس لديك صلاحية مراجعة البرامج.";
+            if ($new_status == 'published' && empty($_SESSION['permissions']['can_publish_programs'])) $error_permission = "ليس لديك صلاحية نشر البرامج.";
+            if ($new_status == 'pending' && (empty($_SESSION['permissions']['can_review_programs']) && empty($_SESSION['permissions']['can_publish_programs']))) $error_permission = "ليس لديك صلاحية إعادة البرنامج للمراجعة.";
+            if ($new_status == 'rejected' && empty($_SESSION['permissions']['can_review_programs'])) $error_permission = "ليس لديك صلاحية رفض البرامج.";
+
+            if ($error_permission) {
+                $response = ['status' => 'error', 'message' => $error_permission];
+            } elseif (in_array($new_status, $allowed_statuses)) {
+                $update_stmt = $pdo->prepare("UPDATE programs SET status = ? WHERE id = ?");
+                $update_stmt->execute([$new_status, $program_id]);
+                
+                $program_stmt = $pdo->prepare("SELECT * FROM programs WHERE id = ?");
+                $program_stmt->execute([$program_id]);
+                $program = $program_stmt->fetch(PDO::FETCH_ASSOC);
+
+                // Regenerate token for the next request
+                $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
+                $new_csrf_token = $_SESSION['csrf_token'];
+
+                $response = [
+                    'status' => 'success', 
+                    'message' => 'تم تحديث الحالة بنجاح.', 
+                    'new_html' => render_status_cell($program, $new_csrf_token),
+                    'new_token' => $new_csrf_token
+                ];
+            } else {
+                $response = ['status' => 'error', 'message' => 'حالة غير صالحة.'];
+            }
+        } catch (PDOException $e) {
+            $response = ['status' => 'error', 'message' => 'خطأ في قاعدة البيانات.'];
+        }
+    }
+    echo json_encode($response);
+    exit;
 }
 
 // --- Status Messages ---
@@ -38,8 +169,8 @@ if (isset($_GET['status'])) {
 }
 
 try {
-    // Fetch programs including the direction, and order by it
-    $stmt = $pdo->query("SELECT id, title, organizer, price, start_date, location, Direction, age_group, registration_link FROM programs ORDER BY id DESC");
+    // Fetch all program data, and order by status first, then by ID
+    $stmt = $pdo->query("SELECT * FROM programs ORDER BY FIELD(status, 'pending', 'reviewed', 'published', 'rejected'), id DESC");
     $all_programs = $stmt->fetchAll(PDO::FETCH_ASSOC);
     $debug['query_executed'] = true;
     $debug['row_count'] = $stmt->rowCount();
@@ -49,6 +180,10 @@ try {
     $debug['error'] = 'Database error: ' . $e->getMessage();
     $all_programs = []; // Ensure it's an array on error
 }
+?>
+<?php
+$_SESSION['csrf_token'] = bin2hex(random_bytes(32));
+$csrf_token = $_SESSION['csrf_token'];
 ?>
 
 <html lang="ar" dir="rtl">
@@ -68,7 +203,13 @@ try {
             --dark: #212529;
             --success: #28a745;
         }
-
+        .status-badge { padding: 4px 10px; border-radius: 20px; color: white; font-weight: 600; font-size: 0.8rem; display: inline-block; text-align: center; min-width: 90px; border: none; }
+        .status-badge.status-published { background-color: var(--success); }
+        .status-badge.status-pending { background-color: #ffc107; color: var(--dark); }
+        .status-badge.status-rejected { background-color: var(--secondary); }
+        .status-badge.status-reviewed { background-color: var(--accent); color: white; }
+        .status-badge.interactive { cursor: pointer; transition: transform 0.2s ease, box-shadow 0.2s ease; }
+        .status-badge.interactive:hover { transform: scale(1.05); box-shadow: 0 2px 8px rgba(0,0,0,0.2); }
 
         * {
             margin: 0;
@@ -177,7 +318,6 @@ try {
             color: var(--accent);
             font-size: 1.2rem;
         }
-
 
         .dashboard-section {
             width: 100%;
@@ -304,12 +444,23 @@ try {
             font-weight: 700;
             color: var(--dark);
         }
+        .main-actions {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 1rem;
+            margin-bottom: 1.5rem;
+            padding-bottom: 1.5rem;
+            border-bottom: 1px solid #e0e0e0;
+        }
+        .filter-actions { display: flex; flex-wrap: wrap; gap: 1.5rem; }
+
 
         .controls-container {
             display: flex;
             gap: 1.5rem;
             margin-bottom: 2rem;
             flex-wrap: wrap;
+            flex-direction: column;
         }
 
         .search-bar-container, .filter-container {
@@ -449,7 +600,6 @@ try {
 
         .action-btn.delete {
             background-color: var(--secondary);
-            color: var(--secondary);
             color: white;
         }
 
@@ -549,6 +699,42 @@ try {
                 padding: 20px;
             }
         }
+
+        .toast-message { 
+            position: fixed; 
+            bottom: 20px; 
+            left: 50%; 
+            transform: translateX(-50%) translateY(100px); 
+            background-color: var(--dark); 
+            color: white; 
+            padding: 12px 25px; 
+            border-radius: 30px; 
+            box-shadow: 0 5px 15px rgba(0,0,0,0.2); 
+            z-index: 1001; 
+            transition: transform 0.4s ease-in-out; 
+            font-weight: 600; 
+        }
+        .toast-message.show { transform: translateX(-50%) translateY(0); }
+        .toast-message.success { background-color: var(--success); }
+        .toast-message.error { background-color: var(--secondary); }
+        .status-cell-wrapper {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+        .revert-btn {
+            background: none;
+            border: none;
+            color: #999;
+            cursor: pointer;
+            font-size: 1.1rem;
+            padding: 2px 5px;
+            transition: color 0.2s ease;
+        }
+        .revert-btn:hover {
+            color: var(--secondary);
+        }
     </style>
 </head>
 <body>
@@ -563,7 +749,7 @@ try {
             </div>
             <div class="page-title-header">
                 <i class="fas fa-tachometer-alt"></i>
-                <span>لوحة التحكم</span>
+                <span>لوحة التحكم collapses</span>
             </div>
             <nav>
                 <ul>
@@ -582,19 +768,7 @@ try {
     <section class="dashboard-section">
         <div class="dashboard-card">
             <div class="dashboard-header">
-                <h2><i class="fas fa-cogs"></i> إدارة البرامج</h2>
-                <div style="display: flex; gap: 1rem; align-items: center;">
-                    <?php if (isset($_SESSION['permissions']['can_manage_settings']) && $_SESSION['permissions']['can_manage_settings']): ?>
-                        <a href="site_settings.php" class="add-program-btn" style="background-color: var(--secondary);"><i class="fas fa-cogs"></i> إعدادات الموقع</a>
-                    <?php endif; ?>
-                    <?php if (isset($_SESSION['permissions']['can_manage_users']) && $_SESSION['permissions']['can_manage_users']): ?>
-                        <a href="manage_users.php" class="add-program-btn" style="background-color: var(--accent);"><i class="fas fa-users-cog"></i> إدارة المستخدمين</a>
-                    <?php endif; ?>
-
-                    <?php if (isset($_SESSION['permissions']['can_add_programs']) && $_SESSION['permissions']['can_add_programs']): ?>
-                        <a href="add_program.php" class="add-program-btn"><i class="fas fa-plus"></i> إضافة برنامج جديد</a>
-                    <?php endif; ?>
-                </div>
+                <h2><i class="fas fa-cogs"></i> لوحة إدارة البرامج</h2>
             </div>
 
             <?php if ($status_message): ?>
@@ -607,10 +781,31 @@ try {
 
             <div class="stats-grid">
                 <div class="stat-card">
-                    <div class="stat-icon"><i class="fas fa-tasks"></i></div>
+                    <div class="stat-icon" style="color: #ffc107; background: rgba(255, 193, 7, 0.1);"><i class="fas fa-hourglass-half"></i></div>
                     <div class="stat-info">
-                        <h4>إجمالي البرامج</h4>
-                        <p><?php echo $total_programs; ?></p>
+                        <h4>بانتظار المراجعة</h4>
+                        <p><?php echo $pending_review; ?></p>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon" style="color: var(--accent); background: rgba(78, 205, 196, 0.1);"><i class="fas fa-check-double"></i></div>
+                    <div class="stat-info">
+                        <h4>بانتظار النشر</h4>
+                        <p><?php echo $pending_publish; ?></p>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon" style="color: var(--success); background: rgba(40, 167, 69, 0.1);"><i class="fas fa-check-circle"></i></div>
+                    <div class="stat-info">
+                        <h4>البرامج المنشورة</h4>
+                        <p><?php echo $published_programs; ?></p>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon" style="color: #6f42c1; background: rgba(111, 66, 193, 0.1);"><i class="fas fa-building"></i></div>
+                    <div class="stat-info">
+                        <h4>عدد الجهات</h4>
+                        <p><?php echo $total_organizers; ?></p>
                     </div>
                 </div>
                 <div class="stat-card">
@@ -620,28 +815,50 @@ try {
                         <p><?php echo $total_sections; ?></p>
                     </div>
                 </div>
-                <div class="stat-card">
-                    <div class="stat-icon"><i class="fas fa-gift"></i></div>
-                    <div class="stat-info">
-                        <h4>البرامج المجانية</h4>
-                        <p><?php echo $free_programs; ?></p>
-                    </div>
-                </div>
             </div>
 
             <div class="controls-container">
-                <div class="search-bar-container">
-                    <i class="fas fa-search"></i>
-                    <input type="text" id="program-search" placeholder="ابحث عن برنامج بالاسم أو الجهة المنظمة...">
+                <div class="main-actions">
+                    <?php if (isset($_SESSION['permissions']['can_add_programs']) && $_SESSION['permissions']['can_add_programs']): ?>
+                        <a href="add_program.php" class="add-program-btn"><i class="fas fa-plus"></i> إضافة برنامج جديد</a>
+                    <?php endif; ?>
+                    <?php if (isset($_SESSION['permissions']['can_add_programs']) && $_SESSION['permissions']['can_add_programs']): ?>
+                        <a href="import.php" class="add-program-btn" style="background-color: #17a2b8;"><i class="fas fa-file-import"></i> استيراد من إكسل</a>
+                    <?php endif; ?>
+                    <?php if (isset($_SESSION['permissions']['can_edit_programs']) && $_SESSION['permissions']['can_edit_programs']): ?>
+                        <a href="export.php" class="add-program-btn" style="background-color: #20c997;"><i class="fas fa-file-export"></i> تصدير إلى إكسل</a>
+                    <?php endif; ?>
+                    <?php if (isset($_SESSION['permissions']['can_manage_users']) && $_SESSION['permissions']['can_manage_users']): ?>
+                        <a href="manage_users.php" class="add-program-btn" style="background-color: var(--accent);"><i class="fas fa-users-cog"></i> إدارة المستخدمين</a>
+                    <?php endif; ?>
+                    <?php if (isset($_SESSION['permissions']['can_manage_settings']) && $_SESSION['permissions']['can_manage_settings']): ?>
+                        <a href="site_settings.php" class="add-program-btn" style="background-color: var(--secondary);"><i class="fas fa-cogs"></i> إعدادات الموقع</a>
+                    <?php endif; ?>
                 </div>
-                <div class="filter-container">
-                    <i class="fas fa-filter"></i>
-                    <select id="direction-filter">
-                        <option value="">كل الأقسام</option>
-                        <?php foreach ($directions as $direction_option): ?>
-                            <option value="<?php echo htmlspecialchars($direction_option); ?>"><?php echo htmlspecialchars($direction_option); ?></option>
-                        <?php endforeach; ?>
-                    </select>
+                <div class="filter-actions">
+                    <div class="search-bar-container">
+                        <i class="fas fa-search"></i>
+                        <input type="text" id="program-search" placeholder="ابحث عن برنامج بالاسم أو الجهة المنظمة...">
+                    </div>
+                    <div class="filter-container">
+                        <i class="fas fa-filter"></i>
+                        <select id="direction-filter">
+                            <option value="">كل الأقسام</option>
+                            <?php foreach ($directions as $direction_option): ?>
+                                <option value="<?php echo htmlspecialchars($direction_option); ?>"><?php echo htmlspecialchars($direction_option); ?></option>
+                            <?php endforeach; ?>
+                        </select>
+                    </div>
+                    <div class="filter-container">
+                        <i class="fas fa-tasks"></i>
+                        <select id="status-filter">
+                            <option value="">كل الحالات</option>
+                            <option value="pending">بانتظار المراجعة</option>
+                            <option value="reviewed">بانتظار النشر</option>
+                            <option value="published">البرامج المنشورة</option>
+                            <option value="rejected">البرامج المرفوضة</option>
+                        </select>
+                    </div>
                 </div>
             </div>
 
@@ -655,6 +872,7 @@ try {
                                 <th data-sort="title">عنوان البرنامج <i class="sort-icon fas fa-sort"></i></th>
                                 <th data-sort="organizer">الجهة المنظمة <i class="sort-icon fas fa-sort"></i></th>
                                 <th data-sort="direction">القسم <i class="sort-icon fas fa-sort"></i></th>
+                                <th data-sort="status">الحالة <i class="sort-icon fas fa-sort"></i></th>
                                 <th data-sort="start_date">تاريخ البدء <i class="sort-icon fas fa-sort"></i></th>
                                 <th data-sort="price">السعر <i class="sort-icon fas fa-sort"></i></th>
                                 <th>الإجراءات</th>
@@ -662,10 +880,11 @@ try {
                         </thead>
                         <tbody>
                             <?php foreach ($all_programs as $program): ?>
-                                <tr>
+                                <tr data-program-id="<?php echo $program['id']; ?>" data-status="<?php echo $program['status']; ?>">
                                     <td><?php echo htmlspecialchars($program['title']); ?></td>
                                     <td><?php echo htmlspecialchars($program['organizer']); ?></td>
                                     <td><?php echo htmlspecialchars($program['Direction']); ?></td>
+                                    <td class="status-cell"><?php echo render_status_cell($program, $csrf_token); ?></td>
                                     <td><?php echo htmlspecialchars($program['start_date']); ?></td>
                                     <td><?php echo htmlspecialchars($program['price']); ?></td>
                                     <td class="action-links">
@@ -689,6 +908,16 @@ try {
     </section>
 
     <script>
+        // Toast Notification Function
+        function showToast(message, type = 'success') {
+            const toast = document.createElement('div');
+            toast.className = `toast-message ${type}`;
+            toast.textContent = message;
+            document.body.appendChild(toast);
+            setTimeout(() => { toast.classList.add('show'); }, 100);
+            setTimeout(() => { toast.classList.remove('show'); setTimeout(() => toast.remove(), 500); }, 4000);
+        }
+
         document.addEventListener('DOMContentLoaded', function() {
             // Hide status message after 5 seconds
             const statusBox = document.getElementById('status-box');
@@ -700,10 +929,11 @@ try {
                 }, 5000);
             }
 
-            const searchInput = document.getElementById('program-search');
-            const directionFilter = document.getElementById('direction-filter');
             const table = document.getElementById('programs-main-table');
             if (!table) return; // Exit if table not found
+            const searchInput = document.getElementById('program-search');
+            const directionFilter = document.getElementById('direction-filter');
+            const statusFilter = document.getElementById('status-filter');
 
             const tbody = table.querySelector('tbody');
             const headers = table.querySelectorAll('thead th[data-sort]');
@@ -712,17 +942,20 @@ try {
             function applyFilters() {
                 const searchText = searchInput.value.toLowerCase();
                 const selectedDirection = directionFilter.value;
+                const selectedStatus = statusFilter.value;
                 const rows = tbody.querySelectorAll('tr');
 
                 rows.forEach(row => {
                     const title = row.cells[0].textContent.toLowerCase();
                     const organizer = row.cells[1].textContent.toLowerCase();
                     const direction = row.cells[2].textContent;
+                    const status = row.dataset.status;
 
                     const searchMatch = title.includes(searchText) || organizer.includes(searchText);
                     const directionMatch = selectedDirection === '' || direction === selectedDirection;
+                    const statusMatch = selectedStatus === '' || status === selectedStatus;
 
-                    if (searchMatch && directionMatch) {
+                    if (searchMatch && directionMatch && statusMatch) {
                         row.style.display = '';
                     } else {
                         row.style.display = 'none';
@@ -732,6 +965,7 @@ try {
 
             if(searchInput) searchInput.addEventListener('keyup', applyFilters);
             if(directionFilter) directionFilter.addEventListener('change', applyFilters);
+            if(statusFilter) statusFilter.addEventListener('change', applyFilters);
 
             // --- Sorting ---
             headers.forEach(header => {
@@ -792,10 +1026,53 @@ try {
                     rowsArray.forEach(row => tbody.appendChild(row));
                 });
             });
-        });
-    </script>
-</body>
-</html>
+
+            // --- Interactive Status Badge AJAX ---
+            // Use event delegation for dynamically added content
+            tbody.addEventListener('submit', function(e) {
+                if (e.target && e.target.classList.contains('status-toggle-form')) {
+                    e.preventDefault();
+                    const form = e.target;
+                    const button = form.querySelector('button');
+                    const originalContent = button.innerHTML;
+                    
+                    button.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+                    button.disabled = true;
+
+                    const formData = new FormData(form);
+
+                    fetch(window.location.href, {
+                        method: 'POST',
+                        headers: { 'X-Requested-With': 'XMLHttpRequest' },
+                        body: formData
+                    })
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.status === 'success') {
+                            showToast(data.message, 'success');
+                            const statusCellWrapper = form.closest('.status-cell-wrapper');
+                            if (statusCellWrapper) {
+                                // Replace the entire wrapper to update both buttons and their forms
+                                statusCellWrapper.outerHTML = data.new_html;
+                            }
+                            // IMPORTANT: Update CSRF token on all other forms on the page for the next request
+                            if (data.new_token) {
+                                document.querySelectorAll('input[name="csrf_token"]').forEach(input => {
+                                    input.value = data.new_token;
+                                });
+                            }
+                        } else {
+                            showToast(data.message || 'حدث خطأ غير متوقع.', 'error');
+                            button.innerHTML = originalContent;
+                            button.disabled = false;
+                        }
+                    })
+                    .catch(error => {
+                        showToast('خطأ في الشبكة، يرجى المحاولة مرة أخرى.', 'error');
+                        console.error('Error:', error);
+                        button.innerHTML = originalContent;
+                        button.disabled = false;
+                    });
                 }
             });
         });

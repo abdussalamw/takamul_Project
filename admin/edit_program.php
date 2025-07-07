@@ -38,32 +38,7 @@ if (empty($_SESSION['csrf_token'])) {
 }
 $csrf_token = $_SESSION['csrf_token'];
 
-if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['update_status'])) {
-    // Handle status update action
-    if (empty($_SESSION['permissions']['can_publish_programs'])) {
-        $error = "ليس لديك الصلاحية لتغيير حالة النشر.";
-    } elseif (!isset($_POST['csrf_token']) || !hash_equals($_SESSION['csrf_token'], $_POST['csrf_token'])) {
-        $error = "فشل التحقق من الطلب (CSRF).";
-    } else {
-        $new_status = $_POST['new_status'];
-        if (in_array($new_status, ['published', 'pending', 'rejected'])) {
-            try {
-                $stmt = $pdo->prepare("UPDATE programs SET status = ? WHERE id = ?");
-                $stmt->execute([$new_status, $program_id]);
-                $program['status'] = $new_status; // Update status in the current view
-                $success = "تم تحديث حالة البرنامج بنجاح. ✅";
-            } catch (PDOException $e) {
-                $error = "خطأ في قاعدة البيانات: " . $e->getMessage();
-            }
-        } else {
-            $error = "حالة غير صالحة.";
-        }
-    }
-    // Regenerate token after any POST
-    $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
-    $csrf_token = $_SESSION['csrf_token'];
-
-} elseif ($_SERVER['REQUEST_METHOD'] == 'POST') {
+if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     // Handle saving program data
     // 1. CSRF Token Validation
     if (!isset($_POST['csrf_token']) || !hash_equals($_SESSION['csrf_token'], $_POST['csrf_token'])) {
@@ -176,6 +151,10 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['update_status'])) {
                 }
             }
         }
+
+        // Regenerate token after any POST to prevent resubmission issues
+        $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
+        $csrf_token = $_SESSION['csrf_token'];
     }
 }
 ?>
@@ -485,6 +464,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['update_status'])) {
         .status-badge.status-published { background-color: var(--success); }
         .status-badge.status-pending { background-color: #ffc107; color: var(--dark); }
         .status-badge.status-rejected { background-color: var(--secondary); }
+        .status-badge.status-reviewed { background-color: var(--accent); color: white; } /* Style for 'reviewed' */
         .status-actions { display: flex; gap: 1rem; }
         .status-btn { border: none; padding: 8px 16px; border-radius: 8px; font-weight: 600; cursor: pointer; transition: all 0.3s ease; display: inline-flex; align-items: center; gap: 8px; }
         .status-btn.publish { background-color: var(--success); color: white; }
@@ -632,13 +612,31 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['update_status'])) {
                     <a href="dashboard.php" class="back-btn-inline"><i class="fas fa-arrow-right"></i> رجوع</a>
                     <div class="status-toggle">
                         <label for="status-checkbox">الحالة:</label>
-                        <label class="switch">
-                            <input type="checkbox" id="status-checkbox" name="status" value="published" <?php if ($program['status'] === 'published') echo 'checked'; ?> disabled>
-                            <span class="slider"></span>
-                        </label>
-                        <span style="font-weight: 500; color: #555;"><?php echo ($program['status'] === 'published') ? 'منشور' : 'قيد المراجعة'; ?></span>
+                        <?php
+                        $status_text = '';
+                        $status_class = '';
+                        switch ($program['status']) {
+                            case 'published':
+                                $status_text = 'منشور';
+                                $status_class = 'status-published';
+                                break;
+                            case 'pending':
+                                $status_text = 'قيد المراجعة';
+                                $status_class = 'status-pending';
+                                break;
+                            case 'rejected':
+                                $status_text = 'مرفوض';
+                                $status_class = 'status-rejected';
+                                break;
+                            case 'reviewed':
+                                $status_text = 'تمت المراجعة';
+                                $status_class = 'status-reviewed';
+                                break;
+                        }
+                        ?>
+                        <span class="status-badge <?php echo $status_class; ?>"><?php echo $status_text; ?></span>
                     </div>
-                    <button type="submit" class="edit-program-btn"><i class="fas fa-save"></i> حفظ التغييرات</button>
+                    <button type="submit" class="edit-program-btn"><i class="fas fa-save"></i> تحديث بيانات البرنامج</button>
                 </div>
             </form>
         </div>

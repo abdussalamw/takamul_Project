@@ -88,7 +88,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
 
             foreach ($table_columns_info as $column_info) {
                 $column_name = $column_info['Field'];
-                if ($column_name === 'id') continue;
+                if (in_array($column_name, ['id', 'status'])) continue; // Skip id and status (status is handled manually)
 
                 if ($column_name === 'ad_link') {
                     if ($ad_link_path) { // فقط إذا تم رفع ملف جديد
@@ -104,14 +104,10 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                 }
             }
 
-            // Determine status based on which button was clicked
-            $status = 'pending'; // Default to pending (draft)
-            if (isset($_POST['save_publish']) && !empty($_SESSION['permissions']['can_publish_programs'])) {
-                $status = 'published';
-            }
+            // All programs added by admins are considered 'reviewed' by default, ready for publishing from the dashboard.
             $db_columns[] = '`status`';
             $placeholders[] = '?';
-            $params[] = $status;
+            $params[] = 'reviewed';
 
             // --- 3. تنفيذ الإدخال في قاعدة البيانات ---
             try {
@@ -406,7 +402,6 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             gap: 8px;
             cursor: pointer;
             transition: all 0.3s ease;
-            margin: 0 auto;
         }
 
         .add-program-btn:hover {
@@ -684,7 +679,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
 
                     foreach ($ordered_columns as $column) {
                         $field_name = $column['Field'];
-                        if ($field_name == 'id') continue; // تخطي حقل المعرف
+                        if (in_array($field_name, ['id', 'status'])) continue; // تخطي حقل المعرف والحالة
 
                         $is_date_field = in_array($field_name, ['start_date', 'end_date']);
 
@@ -722,14 +717,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                 <!-- Form Actions Container -->
                 <div class="form-actions-container">
                     <a href="dashboard.php" class="back-btn-inline"><i class="fas fa-arrow-right"></i> رجوع</a>
-                    <div class="status-toggle">
-                        <label for="status-checkbox">نشر فوري</label>
-                        <label class="switch">
-                            <input type="checkbox" id="status-checkbox" name="status" value="published" checked>
-                            <span class="slider"></span>
-                        </label>
-                    </div>
-                    <button type="submit" class="add-program-btn"><i class="fas fa-save"></i> حفظ البرنامج</button>
+                    <button type="submit" name="save_review" class="add-program-btn"><i class="fas fa-save"></i> حفظ البرنامج كمراجع</button>
                 </div>
             </form>
         </div>

@@ -38,4 +38,3 @@ function load_site_settings($pdo) {
 // Load settings into a globally accessible variable
 $site_settings = load_site_settings($pdo);
 ?>
-?>

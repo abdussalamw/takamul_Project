@@ -25,14 +25,17 @@ $csrf_token = $_SESSION['csrf_token'];
 // Handle permission update
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_permissions'])) {
     // 1. CSRF Token Validation
-    if (!isset($_POST['csrf_token']) || !hash_equals($_SESSION['csrf_token'], $_POST['csrf_token'])) {
-        $error = "فشل التحقق من الطلب (CSRF). يرجى تحديث الصفحة والمحاولة مرة أخرى.";
+    $is_ajax = !empty($_SERVER['HTTP_X_REQUESTED_WITH']) && strtolower($_SERVER['HTTP_X_REQUESTED_WITH']) == 'xmlhttprequest';
+    $response = [];
+
+    if (empty($_POST['csrf_token']) || !hash_equals($_SESSION['csrf_token'], $_POST['csrf_token'])) {
+        $response = ['status' => 'error', 'message' => 'فشل التحقق من الطلب (CSRF).'];
     // 2. Validate User ID
     } elseif (!($user_id_to_update = filter_input(INPUT_POST, 'user_id', FILTER_VALIDATE_INT))) {
-        $error = "معرف المستخدم غير صالح.";
+        $response = ['status' => 'error', 'message' => 'معرف المستخدم غير صالح.'];
     // 3. Prevent user from changing their own permissions to avoid self-lockout
     } elseif ($user_id_to_update == $_SESSION['admin_id']) {
-        $error = "لا يمكنك تعديل صلاحياتك الخاصة لتجنب فقدان الوصول.";
+        $response = ['status' => 'error', 'message' => 'لا يمكنك تعديل صلاحياتك الخاصة.'];
     } else {
         try {
             // Get all permission columns dynamically to build the query
@@ -52,12 +55,23 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_permissions'])
                 $sql = "UPDATE users SET " . implode(', ', $update_parts) . " WHERE id = ?";
                 $stmt = $pdo->prepare($sql);
                 $stmt->execute($params);
-                $success = "تم تحديث الصلاحيات بنجاح.";
+                $response = ['status' => 'success', 'message' => 'تم الحفظ بنجاح!'];
             }
         } catch (PDOException $e) {
             // In production, log the detailed error and show a generic message.
-            $error = "حدث خطأ في قاعدة البيانات. يرجى المحاولة مرة أخرى.";
+            $response = ['status' => 'error', 'message' => 'حدث خطأ في قاعدة البيانات.'];
         }
+    }
+
+    // If it's an AJAX request, output JSON and exit.
+    if ($is_ajax) {
+        header('Content-Type: application/json');
+        echo json_encode($response);
+        exit;
+    } else {
+        // For non-AJAX, set the session messages and redirect or show on page
+        if ($response['status'] === 'success') $success = $response['message'];
+        else $error = $response['message'];
     }
 }
 
@@ -88,6 +102,7 @@ $permission_translations = [
     'can_delete_programs' => 'حذف برامج',
     'can_manage_settings' => 'إدارة الإعدادات',
     'can_publish_programs' => 'نشر البرامج',
+    'can_review_programs' => 'مراجعة البرامج',
 ];
 ?>
 
@@ -204,6 +219,15 @@ $permission_translations = [
         .action-placeholder {
             color: #aaa;
         }
+        .toast-message {
+            position: absolute;
+            transform: translate(10px, -100%);
+            padding: 5px 10px;
+            border-radius: 6px;
+            font-size: 0.85rem;
+            opacity: 0;
+            transition: opacity 0.3s ease, transform 0.3s ease;
+        }
     </style>
 </head>
 <body>
@@ -254,7 +278,7 @@ $permission_translations = [
                         <?php foreach ($users as $user): ?>
                             <?php $is_current_user = ($user['id'] == $_SESSION['admin_id']); ?>
                             <!-- Using display: contents on the form makes the <tr> a valid child of <tbody> -->
-                            <form method="POST" style="display: contents;">
+                            <form method="POST" class="permissions-form" style="display: contents;">
                                 <input type="hidden" name="csrf_token" value="<?php echo htmlspecialchars($csrf_token); ?>">
                                 <tr>
                                     <td>
@@ -270,6 +294,7 @@ $permission_translations = [
                                     <td>
                                         <div class="action-cell">
                                         <?php if (!$is_current_user): ?>
+                                            <input type="hidden" name="update_permissions" value="1">
                                             <button type="submit" name="update_permissions" class="save-btn"><i class="fas fa-save"></i> حفظ</button>
                                             <a href="delete_user.php?id=<?php echo $user['id']; ?>" class="delete-btn" onclick="return confirm('هل أنت متأكد من حذف هذا المستخدم؟ هذا الإجراء لا يمكن التراجع عنه وسيحذف المستخدم نهائياً.');"><i class="fas fa-trash"></i> حذف</a>
                                         <?php else: ?>
@@ -287,5 +312,61 @@ $permission_translations = [
         </div>
     </section>
 
+    <script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const forms = document.querySelectorAll('.permissions-form');
+
+        forms.forEach(form => {
+            form.addEventListener('submit', function(e) {
+                e.preventDefault();
+                const saveButton = form.querySelector('.save-btn');
+                const originalButtonText = saveButton.innerHTML;
+                saveButton.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+                saveButton.disabled = true;
+
+                const formData = new FormData(form);
+
+                fetch(window.location.href, {
+                    method: 'POST',
+                    headers: {
+                        'X-Requested-With': 'XMLHttpRequest'
+                    },
+                    body: formData
+                })
+                .then(response => response.json())
+                .then(data => {
+                    showToast(saveButton, data.message, data.status);
+                })
+                .catch(error => {
+                    showToast(saveButton, 'حدث خطأ في الشبكة.', 'error');
+                    console.error('Error:', error);
+                })
+                .finally(() => {
+                    saveButton.innerHTML = originalButtonText;
+                    saveButton.disabled = false;
+                });
+            });
+        });
+
+        function showToast(element, message, type) {
+            const toast = document.createElement('div');
+            toast.className = 'toast-message';
+            toast.textContent = message;
+            toast.style.backgroundColor = type === 'success' ? 'var(--success)' : 'var(--secondary)';
+            toast.style.color = 'white';
+
+            const actionCell = element.closest('.action-cell');
+            actionCell.style.position = 'relative';
+            actionCell.appendChild(toast);
+
+            setTimeout(() => {
+                toast.style.opacity = '1';
+                toast.style.transform = 'translate(10px, -120%)';
+            }, 10);
+
+            setTimeout(() => { toast.remove(); }, 3000);
+        }
+    });
+    </script>
 </body>
 </html>

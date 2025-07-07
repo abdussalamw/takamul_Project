@@ -7,12 +7,29 @@ ini_set('display_startup_errors', 1);
 error_reporting(E_ALL);
 
 $debug = [];
-$page_title_text = 'إضافة برنامج جديد';
+$page_title_text = 'طلب إضافة برنامج للدليل';
 $error = null;
 $success = null;
 
 // Start session for CSRF token
 session_start();
+
+/**
+ * Fetches all settings from the database.
+ * @param PDO $pdo The database connection object.
+ * @return array An array of settings.
+ */
+function get_all_settings($pdo) {
+    $settings = [];
+    try {
+        $stmt = $pdo->query("SELECT setting_key, setting_value FROM site_settings");
+        while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
+            $settings[$row['setting_key']] = $row['setting_value'];
+        }
+    } catch (PDOException $e) { /* Silently fail on public page */ }
+    return $settings;
+}
+$site_settings = get_all_settings($pdo);
 
 // Generate CSRF token if not already set
 if (empty($_SESSION['csrf_token'])) {
@@ -25,6 +42,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     if (!isset($_POST['csrf_token']) || !hash_equals($_SESSION['csrf_token'], $_POST['csrf_token'])) {
         $error = "فشل التحقق من الطلب (CSRF)، يرجى تحديث الصفحة والمحاولة مرة أخرى. 🚫";
     } else {
+        $errors = [];
         $ad_link_path = null;
 
         // --- 1. Handle File Upload ---
@@ -43,9 +61,9 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             $max_file_size = 5 * 1024 * 1024; // 5 MB
 
             if (!in_array($file_ext, $allowed_ext)) {
-                $error = "نوع الملف غير مسموح به. (المسموح: jpg, png, pdf) 🚫";
+                $errors[] = "نوع الملف غير مسموح به. (المسموح: jpg, png, pdf) 🚫";
             } elseif ($file_size > $max_file_size) {
-                $error = "حجم الملف كبير جداً. الحد الأقصى هو 5 ميجابايت. 🚫";
+                $errors[] = "حجم الملف كبير جداً. الحد الأقصى هو 5 ميجابايت. 🚫";
             } else {
                 $new_file_name = uniqid('ad_', true) . '.' . $file_ext;
                 $dest_path = $upload_dir . $new_file_name;
@@ -53,14 +71,16 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                 if (move_uploaded_file($file_tmp_path, $dest_path)) {
                     $ad_link_path = 'uploads/' . $new_file_name;
                 } else {
-                    $error = "حدث خطأ أثناء نقل الملف المرفوع. 🚫";
+                    $errors[] = "حدث خطأ أثناء نقل الملف المرفوع. 🚫";
                 }
             }
+        } elseif (!isset($_FILES['ad_link']) || $_FILES['ad_link']['error'] === UPLOAD_ERR_NO_FILE) {
+            $errors[] = "حقل 'صورة الإعلان' مطلوب.";
         }
 
         // --- 2. Validate Data ---
-        $validation_errors = [];
-        $field_translations_for_validation = [
+        
+        $required_fields = [
             'title'             => 'عنوان البرنامج',
             'organizer'         => 'الجهة المنظمة',
             'description'       => 'وصف البرنامج',
@@ -75,24 +95,17 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             'google_map'        => 'رابط خرائط جوجل',
         ];
 
-        foreach ($field_translations_for_validation as $field => $translation) {
+        foreach ($required_fields as $field => $translation) {
             if (empty(trim($_POST[$field]))) {
-                $validation_errors[] = "حقل '{$translation}' مطلوب.";
+                $errors[] = "حقل '{$translation}' مطلوب.";
             }
         }
 
-        // Specific validation for file upload
-        if (empty($ad_link_path)) {
-            $validation_errors[] = "حقل 'صورة الإعلان' مطلوب.";
-        }
-
         if (isset($_POST['start_date']) && !empty($_POST['start_date']) && !preg_match('/^\d{1,2}\/\d{1,2}\/\d{4}$/', $_POST['start_date'])) {
-            $error = "تاريخ البدء غير صالح (يجب أن يكون DD/MM/YYYY) 🚫";
+            $errors[] = "تاريخ البدء غير صالح (يجب أن يكون DD/MM/YYYY) 🚫";
         }
 
-        if (!empty($validation_errors)) {
-            $error = implode('<br>', $validation_errors);
-        } elseif (!isset($error)) {
+        if (empty($errors)) {
             $db_columns = [];
             $placeholders = [];
             $params = [];
@@ -134,6 +147,8 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             } catch (PDOException $e) {
                 $error = "خطأ في قاعدة البيانات: " . $e->getMessage() . " 🚫";
             }
+        } else {
+            $error = implode('<br>', $errors);
         }
     }
     // Regenerate CSRF token after submission
