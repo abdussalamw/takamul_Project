@@ -1,33 +1,27 @@
 <?php
-session_start();
-include '../includes/db_connect.php';
-
 // Ensure the PhpSpreadsheet library is available
 if (file_exists('../vendor/autoload.php')) {
     require '../vendor/autoload.php';
 } else {
     die("Error: The PhpSpreadsheet library is not found. Please install it via Composer: `composer require phpoffice/phpspreadsheet`");
 }
-
 use PhpOffice\PhpSpreadsheet\IOFactory;
 
-// Security check
-if (empty($_SESSION['admin_id']) || empty($_SESSION['permissions']['can_add_programs'])) {
-    header('Location: dashboard.php?status=unauthorized');
-    exit;
-}
+// Initialize dependencies and controller
+include_once '../includes/db_connect.php';
+include_once 'AdminController.php';
+$adminController = new AdminController($pdo);
 
-$page_title_text = 'استيراد برامج من إكسل';
+// Page settings
+$page_title = 'استيراد وتصدير البرامج';
 $error = null;
 $success = null;
 $import_summary = [];
 
-// Generate CSRF token
-if (empty($_SESSION['csrf_token'])) {
-    $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
-}
-$csrf_token = $_SESSION['csrf_token'];
+// Security check: require permission before any output
+$adminController->requirePermission('can_add_programs');
 
+// Handle POST logic before rendering the view
 if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     if (!isset($_POST['csrf_token']) || !hash_equals($_SESSION['csrf_token'], $_POST['csrf_token'])) {
         $error = "فشل التحقق من الطلب (CSRF).";
@@ -133,62 +127,19 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
         $error = "يرجى اختيار ملف إكسل لرفعه.";
     }
 }
+
+// Render the view
+$adminController->renderHeader($page_title);
+if ($error) {
+    $adminController->setErrorMessage($error);
+}
+if ($success) {
+    $adminController->setSuccessMessage($success);
+}
+$adminController->renderMessages();
 ?>
-<html lang="ar" dir="rtl">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title><?php echo $page_title_text; ?> 📥</title>
-    <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@300;400;500;700;800&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <!-- The new beautiful styles -->
-    <style>
-        :root { 
-            --primary: #8a2be2; 
-            --secondary: #ff6b6b; 
-            --accent: #4ecdc4; 
-            --light: #f8f9fa; 
-            --dark: #212529; 
-            --success: #28a745; 
-        }
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-        body { 
-            font-family: 'Tajawal', sans-serif; 
-            background: linear-gradient(135deg, #f5f7fa 0%, #e4e7f1 100%); 
-            color: var(--dark); 
-            line-height: 1.6;
-            min-height: 100vh;
-        }
-        header {
-            background: linear-gradient(120deg, var(--primary), #5c1d9c);
-            color: white;
-            padding: 0.5rem 0;
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-            position: sticky;
-            top: 0;
-            z-index: 1000;
-            width: 100%;
-        }
-        .header-container {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            max-width: 1200px;
-            margin: 0 auto;
-            padding: 0 20px;
-        }
-        .logo { display: flex; align-items: center; gap: 15px; }
-        .logo-image { width: 60px; height: 60px; object-fit: contain; }
-        .logo-text { font-size: 1.5rem; font-weight: 800; }
-        .page-title-header { display: flex; align-items: center; font-size: 1.1rem; font-weight: 700; }
-        .page-title-header i { margin-left: 10px; color: var(--accent); font-size: 1.2rem; }
-        nav ul { display: flex; list-style: none; gap: 20px; }
-        nav a { color: white; text-decoration: none; font-weight: 500; padding: 10px 20px; border-radius: 30px; transition: all 0.3s ease; display: flex; align-items: center; gap: 8px; }
-        nav a:hover { background: rgba(255, 255, 255, 0.15); }
-        
-        .import-section { max-width: 800px; width: 100%; margin: 40px auto; padding: 20px; }
-        .import-card { background: white; border-radius: 20px; box-shadow: 0 8px 20px rgba(0,0,0,0.1); padding: 2.5rem; text-align: right; }
-        .import-card h2 {
+<style>
+    .import-card h2 {
             color: var(--primary);
             font-size: 1.8rem;
             margin-bottom: 2rem;
@@ -196,7 +147,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             padding-bottom: 10px;
             display: flex;
             align-items: center;
-            gap: 15px;
+            gap: 10px;
         }
         .import-card h2::after {
             content: '';
@@ -208,10 +159,6 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             background: var(--secondary);
             border-radius: 2px;
         }
-        .message { padding: 15px; margin-bottom: 20px; border-radius: 8px; font-weight: 500; text-align: center; }
-        .message.success { background-color: #d4edda; color: #155724; }
-        .message.error { background-color: #f8d7da; color: #721c24; }
-
         .instructions {
             background-color: #f8f9fa;
             border-right: 4px solid var(--accent);
@@ -250,33 +197,57 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
         .summary ul { max-height: 200px; overflow-y: auto; background: #f8f9fa; padding: 15px; border-radius: 8px; border: 1px solid #e9ecef; list-style-position: inside; }
         .summary ul li { padding: 5px; border-bottom: 1px solid #e9ecef; }
         .summary ul li:last-child { border-bottom: none; }
-    </style>
-</head>
-<body>
-    <header>
-        <div class="header-container">
-            <div class="logo">
-                <img src="https://i.postimg.cc/sxNCrL6d/logo-white-03.png" alt="شعار" class="logo-image">
-                <div class="logo-text">دليل البرامج الصيفية</div>
+
+        /* New styles for export section */
+        .export-section-card {
+            background: linear-gradient(135deg, #e0f7fa, #b2ebf2);
+            border: 1px solid var(--accent);
+            border-radius: 15px;
+            padding: 1.5rem;
+            margin-bottom: 2rem;
+            text-align: right;
+        }
+        .export-section-card h3 {
+            color: #00796b;
+            font-size: 1.3rem;
+            margin-bottom: 0.75rem;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .export-section-card p {
+            color: #004d40;
+            margin-bottom: 1rem;
+        }
+        .export-btn {
+            display: inline-block;
+            background: var(--accent);
+            color: white;
+            padding: 10px 20px;
+            border-radius: 8px;
+            text-decoration: none;
+            font-weight: 600;
+            transition: all 0.3s ease;
+        }
+        .export-btn:hover {
+            background: #26a69a;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+        }
+</style>
+
+<section class="dashboard-section">
+    <div class="dashboard-card import-card">
+        <h2><i class="fas fa-exchange-alt"></i> <?php echo htmlspecialchars($page_title); ?></h2>
+
+        <div class="content-wrapper">
+            <!-- Export Section -->
+            <div class="export-section-card">
+                <h3><i class="fas fa-file-export"></i> تصدير البرامج</h3>
+                <p>يمكنك تصدير جميع البرامج الموجودة في النظام إلى ملف Excel. هذا الملف يمكن استخدامه كقالب لعملية الاستيراد لاحقًا.</p>
+                <a href="export.php" class="export-btn"><i class="fas fa-download"></i> تحميل ملف التصدير</a>
             </div>
-            <div class="page-title-header">
-                <i class="fas fa-file-import"></i>
-                <span><?php echo htmlspecialchars($page_title_text); ?></span>
-            </div>
-            <nav>
-                <ul>
-                    <li><a href="dashboard.php"><i class="fas fa-tachometer-alt"></i> لوحة التحكم</a></li>
-                    <li><a href="logout.php"><i class="fas fa-sign-out-alt"></i> خروج</a></li>
-                </ul>
-            </nav>
-        </div>
-    </header>
-    <section class="import-section">
-        <div class="import-card">
-            <h2><i class="fas fa-file-excel"></i> استيراد برامج من ملف إكسل</h2>
-            
-            <?php if ($success): ?><div class="message success"><?php echo $success; ?></div><?php endif; ?>
-            <?php if ($error): ?><div class="message error"><?php echo $error; ?></div><?php endif; ?>
+
 
             <?php if (!empty($import_summary)): ?>
             <div class="summary">
@@ -295,18 +266,19 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             <?php endif; ?>
 
             <div class="instructions">
+                <h3><i class="fas fa-file-import"></i> استيراد برامج من ملف إكسل</h3>
                 <h4>تعليمات الاستيراد:</h4>
                 <ul>
                     <li>يجب أن يكون الملف بصيغة `.xlsx`.</li>
                     <li>يجب أن يحتوي الصف الأول على أسماء الأعمدة باللغة العربية كما في ملف التصدير.</li>
                     <li>عمود "عنوان البرنامج" إجباري لكل برنامج.</li>
                     <li>سيتم تعيين حالة جميع البرامج المستوردة إلى "تمت المراجعة" تلقائياً.</li>
-                    <li>يمكنك <a href="export.php" style="font-weight: bold; color: var(--primary);">تصدير ملف إكسل</a> لاستخدامه كقالب.</li>
+                    <li>يمكنك استخدام قسم التصدير أعلاه لإنشاء ملف Excel لاستخدامه كقالب.</li>
                 </ul>
             </div>
 
             <form method="POST" enctype="multipart/form-data" class="upload-form">
-                <input type="hidden" name="csrf_token" value="<?php echo htmlspecialchars($csrf_token); ?>">
+                <input type="hidden" name="csrf_token" value="<?php echo htmlspecialchars($adminController->csrf_token); ?>">
                 <div class="file-upload-wrapper">
                     <input type="file" name="excel_file" id="excel_file" required accept=".xlsx, application/vnd.openxmlformats-officedocument.spreadsheetml.sheet">
                     <label for="excel_file" class="file-upload-label">
@@ -318,9 +290,10 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                 <button type="submit" class="upload-btn" id="upload-btn" disabled><i class="fas fa-upload"></i> رفع واستيراد</button>
             </form>
         </div>
-    </section>
+    </div>
+</section>
 
-    <script>
+<script>
     document.addEventListener('DOMContentLoaded', function() {
         const fileInput = document.getElementById('excel_file');
         const fileNameDisplay = document.getElementById('file-name-display');
@@ -336,6 +309,6 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             }
         });
     });
-    </script>
-</body>
-</html>
+</script>
+
+<?php $adminController->renderFooter(); ?>
