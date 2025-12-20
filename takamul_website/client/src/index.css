@@ -1,0 +1,353 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+
+@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;800&family=Poppins:wght@400;500;600;700&display=swap');
+
+@custom-variant dark (&:is(.dark *));
+
+@theme inline {
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
+}
+
+:root {
+  /* Takamul Modern Integrated Design Colors */
+  /* Primary: Prussian Blue - Trust & Stability */
+  --primary: #003d5c;
+  --primary-foreground: #ffffff;
+  --sidebar-primary: #004d73;
+  --sidebar-primary-foreground: #ffffff;
+
+  /* Secondary: Warm Gold - Value & Giving */
+  --secondary: #d4a574;
+  --secondary-foreground: #003d5c;
+
+  /* Accent: Light Gold */
+  --accent: #e8c9a0;
+  --accent-foreground: #003d5c;
+
+  /* Charts: Blue & Gold gradient */
+  --chart-1: #003d5c;
+  --chart-2: #004d73;
+  --chart-3: #d4a574;
+  --chart-4: #e8c9a0;
+  --chart-5: #f5e6d3;
+
+  --radius: 0.65rem;
+  --background: #faf8f5;
+  --foreground: #1a1a1a;
+  --card: #ffffff;
+  --card-foreground: #1a1a1a;
+  --popover: #ffffff;
+  --popover-foreground: #1a1a1a;
+  --muted: #e8e8e8;
+  --muted-foreground: #666666;
+  --destructive: #dc2626;
+  --destructive-foreground: #ffffff;
+  --border: #e0dcd8;
+  --input: #f5f5f5;
+  --ring: #003d5c;
+  --sidebar: #ffffff;
+  --sidebar-foreground: #1a1a1a;
+  --sidebar-accent: #f5e6d3;
+  --sidebar-accent-foreground: #003d5c;
+  --sidebar-border: #e0dcd8;
+  --sidebar-ring: #003d5c;
+}
+
+/* Blue Theme (Style 1) */
+[data-theme="blue"] {
+  --primary: #0e7490;
+  --primary-foreground: #ffffff;
+  --sidebar-primary: #1e3a8a;
+  --sidebar-primary-foreground: #ffffff;
+
+  --secondary: #1e3a8a;
+  --secondary-foreground: #ffffff;
+
+  --accent: #cffafe;
+  --accent-foreground: #0e7490;
+
+  --chart-1: #0e7490;
+  --chart-2: #1e3a8a;
+  --chart-3: #cffafe;
+  --chart-4: #bae6fd;
+  --chart-5: #f0f9ff;
+
+  --ring: #0e7490;
+  --sidebar-accent: #f0f9ff;
+  --sidebar-accent-foreground: #0e7490;
+  --sidebar-ring: #0e7490;
+}
+
+.dark {
+  /* Dark theme for Takamul */
+  --primary: #1a5a7a;
+  --primary-foreground: #f5e6d3;
+  --sidebar-primary: #2a7a9a;
+  --sidebar-primary-foreground: #f5e6d3;
+  --background: #0f1419;
+  --foreground: #e8e8e8;
+  --card: #1a2633;
+  --card-foreground: #e8e8e8;
+  --popover: #1a2633;
+  --popover-foreground: #e8e8e8;
+  --secondary: #d4a574;
+  --secondary-foreground: #0f1419;
+  --muted: #2a3a4a;
+  --muted-foreground: #a0a0a0;
+  --accent: #e8c9a0;
+  --accent-foreground: #0f1419;
+  --destructive: #ff6b6b;
+  --destructive-foreground: #0f1419;
+  --border: #2a3a4a;
+  --input: #1a2633;
+  --ring: #d4a574;
+  --chart-1: #003d5c;
+  --chart-2: #004d73;
+  --chart-3: #d4a574;
+  --chart-4: #e8c9a0;
+  --chart-5: #f5e6d3;
+  --sidebar: #1a2633;
+  --sidebar-foreground: #e8e8e8;
+  --sidebar-accent: #2a3a4a;
+  --sidebar-accent-foreground: #d4a574;
+  --sidebar-border: #2a3a4a;
+  --sidebar-ring: #d4a574;
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  body {
+    @apply bg-background text-foreground;
+    font-family: 'Poppins', sans-serif;
+  }
+  h1, h2, h3, h4, h5, h6 {
+    font-family: 'Playfair Display', serif;
+    font-weight: 700;
+  }
+  h1 {
+    @apply text-4xl md:text-5xl lg:text-6xl;
+  }
+  h2 {
+    @apply text-3xl md:text-4xl;
+  }
+  h3 {
+    @apply text-2xl md:text-3xl;
+  }
+  button:not(:disabled),
+  [role="button"]:not([aria-disabled="true"]),
+  [type="button"]:not(:disabled),
+  [type="submit"]:not(:disabled),
+  [type="reset"]:not(:disabled),
+  a[href],
+  select:not(:disabled),
+  input[type="checkbox"]:not(:disabled),
+  input[type="radio"]:not(:disabled) {
+    @apply cursor-pointer;
+  }
+}
+
+@layer components {
+  /**
+   * Custom container utility that centers content and adds responsive padding.
+   *
+   * This overrides Tailwind's default container behavior to:
+   * - Auto-center content (mx-auto)
+   * - Add responsive horizontal padding
+   * - Set max-width for large screens
+   *
+   * Usage: <div className="container">...</div>
+   *
+   * For custom widths, use max-w-* utilities directly:
+   * <div className="max-w-6xl mx-auto px-4">...</div>
+   */
+  .container {
+    width: 100%;
+    margin-left: auto;
+    margin-right: auto;
+    padding-left: 1rem; /* 16px - mobile padding */
+    padding-right: 1rem;
+  }
+
+  .flex {
+    min-height: 0;
+    min-width: 0;
+  }
+
+  @media (min-width: 640px) {
+    .container {
+      padding-left: 1.5rem; /* 24px - tablet padding */
+      padding-right: 1.5rem;
+    }
+  }
+
+  @media (min-width: 1024px) {
+    .container {
+      padding-left: 2rem; /* 32px - desktop padding */
+      padding-right: 2rem;
+      max-width: 1280px; /* Standard content width */
+    }
+  }
+
+  /* Takamul Design Utilities */
+  .gradient-primary {
+    @apply bg-gradient-to-r from-primary to-secondary;
+  }
+
+  .gradient-accent {
+    @apply bg-gradient-to-r from-accent to-secondary;
+  }
+
+  .text-gradient {
+    @apply bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent;
+  }
+
+  .divider-geometric {
+    @apply relative overflow-hidden;
+  }
+
+  .divider-geometric::after {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 2px;
+    background: linear-gradient(90deg, transparent, #d4a574, transparent);
+  }
+
+  /* Member Logos Animation */
+  .logo-row {
+    overflow: hidden;
+    position: relative;
+    width: 100%;
+    direction: ltr;
+    margin-bottom: 20px;
+  }
+
+  .logo-row:last-child {
+    margin-bottom: 0;
+  }
+
+  .logo-slider-track {
+    display: flex;
+    width: fit-content;
+    gap: 30px;
+  }
+
+  /* السطر الأول: من اليمين لليسار */
+  .row-1 .logo-slider-track {
+    animation: scrollLeft 60s linear infinite;
+  }
+
+  /* السطر الثاني: من اليسار لليمين (عكس) */
+  .row-2 .logo-slider-track {
+    animation: scrollRight 60s linear infinite;
+  }
+
+  /* السطر الثالث: من اليمين لليسار لكن يبدأ من النصف */
+  .row-3 .logo-slider-track {
+    animation: scrollLeft 60s linear infinite;
+    transform: translateX(-25%);
+  }
+
+  .logo-slider-track:hover {
+    animation-play-state: paused;
+  }
+
+  .logo-slide {
+    flex-shrink: 0;
+    min-width: 170px;
+    max-width: 210px;
+    height: 120px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #fff;
+    border-radius: 16px;
+    box-shadow: 0 2px 10px 0 rgba(44, 62, 80, 0.07);
+    transition: box-shadow 0.3s, transform 0.3s;
+  }
+
+  .logo-slide:hover {
+    box-shadow: 0 12px 36px 0 rgba(44, 62, 80, 0.18);
+    transform: scale(1.13);
+    z-index: 2;
+  }
+
+  .logo-image {
+    max-width: 90%;
+    max-height: 90px;
+    object-fit: contain;
+    filter: none;
+    transition: transform 0.3s;
+  }
+
+  /* حركة من اليمين لليسار */
+  @keyframes scrollLeft {
+    0% {
+      transform: translateX(0);
+    }
+    100% {
+      transform: translateX(-50%);
+    }
+  }
+
+  /* حركة من اليسار لليمين */
+  @keyframes scrollRight {
+    0% {
+      transform: translateX(-50%);
+    }
+    100% {
+      transform: translateX(0);
+    }
+  }
+
+  @media (max-width: 900px) {
+    .logo-slide {
+      min-width: 100px;
+      max-width: 120px;
+      height: 60px;
+    }
+    .logo-image {
+      max-height: 40px;
+    }
+  }
+}

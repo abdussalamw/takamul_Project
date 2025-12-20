@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>الدليل الإجرائي لتأسيس تكامل</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@300;400;500;700;800&display=swap" rel="stylesheet">
+    <script>
+      tailwind.config = {
+        theme: {
+          extend: {
+            fontFamily: {
+              sans: ['Tajawal', 'sans-serif'],
+            },
+            colors: {
+              // Default colors (will be overridden by data-theme)
+              primary: '#0e7490', // Blue theme primary
+              secondary: '#1e3a8a', // Blue theme secondary
+              accent: '#cffafe', // Blue theme accent
+            }
+          }
+        }
+      }
+    </script>
+    <style>
+      body {
+        font-family: 'Tajawal', sans-serif;
+        background-color: #f8fafc;
+        transition: background-color 0.3s ease;
+      }
+
+      /* Default Blue Theme (Style 1) */
+      body {
+        --theme-primary: #0e7490;
+        --theme-dark: #1e3a8a;
+        --theme-light: #cffafe;
+        --theme-accent: #f59e0b;
+      }
+
+      /* Gold Theme (Style 2) */
+      [data-theme="gold"] body {
+        --theme-primary: #d4a574;
+        --theme-dark: #003d5c;
+        --theme-light: #e8c9a0;
+        --theme-accent: #f5e6d3;
+        background-color: #faf8f5;
+      }
+
+      /* Custom scrollbar for webkit */
+      ::-webkit-scrollbar {
+        width: 8px;
+      }
+      ::-webkit-scrollbar-track {
+        background: #f1f1f1;
+      }
+      ::-webkit-scrollbar-thumb {
+        background: var(--theme-primary);
+        border-radius: 4px;
+        transition: background-color 0.3s ease;
+      }
+      ::-webkit-scrollbar-thumb:hover {
+        background: var(--theme-dark);
+      }
+
+      /* Theme-aware elements */
+      .theme-primary-bg {
+        background-color: var(--theme-primary);
+        transition: background-color 0.3s ease;
+      }
+
+      .theme-primary-text {
+        color: var(--theme-primary);
+        transition: color 0.3s ease;
+      }
+
+      .theme-accent-bg {
+        background-color: var(--theme-accent);
+        transition: background-color 0.3s ease;
+      }
+
+      .theme-light-bg {
+        background-color: var(--theme-light);
+        transition: background-color 0.3s ease;
+      }
+    </style>
+
+<link rel="stylesheet" href="/index.css">
+</head>
+  <body>
+    <div id="root"></div>
+  <script type="module" src="/index.tsx"></script>
+</body>
+</html>
