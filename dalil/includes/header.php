@@ -793,12 +793,14 @@ if (session_status() === PHP_SESSION_NONE) {
             position: relative;
             width: 40px;
             height: 40px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
+            background: transparent !important;
+            border: none !important;
         }
 
         .pulse-dot {
+            position: absolute;
+            top: 13px;
+            left: 13px;
             width: 14px;
             height: 14px;
             background-color: var(--primary); /* اللون البنفسجي */
@@ -807,15 +809,18 @@ if (session_status() === PHP_SESSION_NONE) {
             box-shadow: 0 0 6px rgba(138, 43, 226, 0.6);
             z-index: 2;
             transition: all 0.3s ease;
+            box-sizing: border-box;
         }
 
         .pulsating-icon-container:hover .pulse-dot {
             background-color: var(--secondary); /* اللون المرجاني عند التحويم */
-            transform: scale(1.2);
+            transform: scale(1.25);
         }
 
         .pulse-ring {
             position: absolute;
+            top: 0;
+            left: 0;
             width: 40px;
             height: 40px;
             border: 3px solid var(--primary);
@@ -824,6 +829,7 @@ if (session_status() === PHP_SESSION_NONE) {
             animation: pulse-animation 1.6s infinite ease-out;
             z-index: 1;
             opacity: 0;
+            box-sizing: border-box;
         }
 
         @keyframes pulse-animation {
@@ -835,7 +841,7 @@ if (session_status() === PHP_SESSION_NONE) {
                 opacity: 0.4;
             }
             100% {
-                transform: scale(1.3);
+                transform: scale(1.2);
                 opacity: 0;
             }
         }
