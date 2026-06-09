@@ -8,6 +8,8 @@ dalil/scratch/
 # Deployment packages
 dalil_deployment/
 dalil_deployment.zip
+dalil_project/
+dalil_project.zip
 
 # Database dumps / backups
 *.sql
