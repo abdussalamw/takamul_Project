@@ -355,6 +355,32 @@ include 'programs.php';
             e.preventDefault();
             applyFilters();
         });
+
+        // البحث الفوري أثناء الكتابة (مع مؤقت لتجنب تكرار الطلبات)
+        var searchTimeout = null;
+        $(document).on('input', '.search-box input[name="search"]', function() {
+            var searchVal = $(this).val();
+            
+            // تحديث الحقل المخفي في نموذج الفلترة
+            var hiddenSearch = $('#filter-form input[name="search"]');
+            if (hiddenSearch.length === 0) {
+                $('#filter-form').append('<input type="hidden" name="search" value="">');
+                hiddenSearch = $('#filter-form input[name="search"]');
+            }
+            hiddenSearch.val(searchVal);
+            
+            clearTimeout(searchTimeout);
+            searchTimeout = setTimeout(function() {
+                applyFilters();
+            }, 300); // إرسال الطلب بعد 300 ملي ثانية من التوقف عن الكتابة
+        });
+
+        // منع إرسال نموذج البحث بشكل تقليدي عند الضغط على Enter أو زر البحث
+        $(document).on('submit', '.search-box', function(e) {
+            e.preventDefault();
+            clearTimeout(searchTimeout);
+            applyFilters();
+        });
     });
 </script>
 
