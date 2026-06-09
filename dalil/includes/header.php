@@ -730,6 +730,63 @@ if (session_status() === PHP_SESSION_NONE) {
                 flex-direction: column;
             }
         }
+
+        /* View Toggling Controls - Modern Segmented Tabs */
+        .view-controls {
+            display: inline-flex;
+            background-color: rgba(138, 43, 226, 0.05);
+            padding: 5px;
+            border-radius: 40px;
+            border: 1px solid rgba(138, 43, 226, 0.1);
+            margin-bottom: 20px;
+            box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.05);
+        }
+        .view-controls .view-toggle-btn {
+            padding: 10px 24px;
+            cursor: pointer;
+            border: none;
+            background: transparent;
+            color: #5c1d9c;
+            border-radius: 30px;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            font-family: 'Tajawal', sans-serif;
+            font-size: 0.95rem;
+            font-weight: 600;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .view-controls .view-toggle-btn:not(.active):hover {
+            background-color: rgba(138, 43, 226, 0.08);
+            color: var(--primary);
+        }
+        .view-controls .view-toggle-btn.active {
+            background: linear-gradient(135deg, var(--primary) 0%, #6f1ab6 100%);
+            color: white;
+            box-shadow: 0 4px 12px rgba(138, 43, 226, 0.25);
+        }
+        
+        @media (max-width: 768px) {
+            .view-controls {
+                display: flex;
+                width: 100%;
+                justify-content: space-between;
+                padding: 4px;
+                border-radius: 30px;
+                box-sizing: border-box;
+                margin-top: 10px;
+            }
+            .view-controls .view-toggle-btn {
+                flex: 1;
+                justify-content: center;
+                padding: 8px 10px;
+                font-size: 0.8rem;
+                gap: 4px;
+            }
+            .view-controls .view-toggle-btn i {
+                font-size: 0.95rem;
+            }
+        }
     </style>
 </head>
 <body>
