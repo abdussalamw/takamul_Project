@@ -11,13 +11,12 @@ if (isset($_GET['region']) && $_GET['region'] !== 'الكل') {
 }
 
 if (isset($_GET['age_group']) && $_GET['age_group'] !== 'الكل') {
-    $where_clauses[] = "age_group = ?";
-    $params[] = $_GET['age_group'];
-}
-
-if (isset($_GET['duration']) && $_GET['duration'] !== 'الكل') {
-    $where_clauses[] = "duration = ?";
-    $params[] = $_GET['duration'];
+    if ($_GET['age_group'] === 'أخرى') {
+        $where_clauses[] = "(age_group LIKE '%أخرى%' OR (age_group NOT LIKE '%متوسط%' AND age_group NOT LIKE '%ثانوي%' AND age_group NOT LIKE '%جامعي%' AND age_group NOT LIKE '%مافوق الجامعي%'))";
+    } else {
+        $where_clauses[] = "age_group LIKE ?";
+        $params[] = "%" . $_GET['age_group'] . "%";
+    }
 }
 
 if (isset($_GET['search']) && !empty(trim($_GET['search']))) {
@@ -63,8 +62,7 @@ foreach ($programs as $program) {
 
 // جلب القيم الفريدة للفلاتر — من البرامج المتاحة للعرض فقط
 $locations  = $pdo->query("SELECT DISTINCT Direction FROM programs WHERE status = 'published' AND Direction IS NOT NULL AND Direction != '' ORDER BY Direction")->fetchAll(PDO::FETCH_COLUMN);
-$age_groups = $pdo->query("SELECT DISTINCT age_group FROM programs WHERE status = 'published' AND age_group IS NOT NULL AND age_group != '' ORDER BY age_group")->fetchAll(PDO::FETCH_COLUMN);
-$durations  = $pdo->query("SELECT DISTINCT duration FROM programs WHERE status = 'published' AND duration IS NOT NULL AND duration != '' ORDER BY duration")->fetchAll(PDO::FETCH_COLUMN);
+$age_groups = $pdo->query("SELECT name_ar FROM age_groups ORDER BY sort_order")->fetchAll(PDO::FETCH_COLUMN);
 
 // عدد البرامج المتاحة للعرض فقط
 $total_stmt     = $pdo->query("SELECT COUNT(*) FROM programs WHERE status = 'published'");
@@ -122,17 +120,6 @@ if (isset($_GET['ajax']) && $_GET['ajax'] == '1') {
                 <?php foreach ($age_groups as $age_group): ?>
                     <option value="<?php echo htmlspecialchars($age_group); ?>" <?php echo isset($_GET['age_group']) && $_GET['age_group'] == $age_group ? 'selected' : ''; ?>>
                         <?php echo htmlspecialchars($age_group); ?>
-                    </option>
-                <?php endforeach; ?>
-            </select>
-        </div>
-        <div class="filter-group">
-            <h3><i class="fas fa-clock"></i> المدة</h3>
-            <select name="duration">
-                <option value="الكل">الكل</option>
-                <?php foreach ($durations as $duration): ?>
-                    <option value="<?php echo htmlspecialchars($duration); ?>" <?php echo isset($_GET['duration']) && $_GET['duration'] == $duration ? 'selected' : ''; ?>>
-                        <?php echo htmlspecialchars($duration); ?>
                     </option>
                 <?php endforeach; ?>
             </select>
