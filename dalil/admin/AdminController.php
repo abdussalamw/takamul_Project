@@ -86,6 +86,13 @@ class AdminController {
     public function setErrorMessage($message) {
         $_SESSION['error_message'] = $message;
     }
+
+    /**
+     * Set warning message
+     */
+    public function setWarningMessage($message) {
+        $_SESSION['warning_message'] = $message;
+    }
     
     /**
      * Get and clear success message
@@ -110,6 +117,18 @@ class AdminController {
         }
         return null;
     }
+
+    /**
+     * Get and clear warning message
+     */
+    public function getWarningMessage() {
+        if (isset($_SESSION['warning_message'])) {
+            $message = $_SESSION['warning_message'];
+            unset($_SESSION['warning_message']);
+            return $message;
+        }
+        return null;
+    }
     
     /**
      * Render message alerts
@@ -117,6 +136,7 @@ class AdminController {
     public function renderMessages() {
         $success = $this->getSuccessMessage();
         $error = $this->getErrorMessage();
+        $warning = $this->getWarningMessage();
         
         if ($success) {
             echo "<div class='message success'><i class='fas fa-check-circle'></i> " . htmlspecialchars($success) . "</div>";
@@ -124,6 +144,10 @@ class AdminController {
         
         if ($error) {
             echo "<div class='message error'><i class='fas fa-exclamation-circle'></i> " . htmlspecialchars($error) . "</div>";
+        }
+
+        if ($warning) {
+            echo "<div class='message info'><i class='fas fa-exclamation-triangle'></i> " . htmlspecialchars($warning) . "</div>";
         }
     }
     
@@ -153,7 +177,7 @@ class AdminController {
     /**
      * Handle file upload
      */
-    public function handleFileUpload($file, $upload_dir = '../uploads/', $allowed_types = ['jpg', 'jpeg', 'png', 'gif']) {
+    public function handleFileUpload($file, $upload_dir = '../uploads/', $allowed_types = ['jpg', 'jpeg', 'png', 'pdf']) {
         if (!isset($file) || $file['error'] !== UPLOAD_ERR_OK) {
             return ['success' => false, 'message' => 'لم يتم رفع الملف بشكل صحيح'];
         }
@@ -161,6 +185,31 @@ class AdminController {
         $file_extension = strtolower(pathinfo($file['name'], PATHINFO_EXTENSION));
         if (!in_array($file_extension, $allowed_types)) {
             return ['success' => false, 'message' => 'نوع الملف غير مسموح'];
+        }
+
+        // Map extensions to their corresponding allowed MIME types
+        $mime_map = [
+            'jpg'  => ['image/jpeg', 'image/pjpeg'],
+            'jpeg' => ['image/jpeg', 'image/pjpeg'],
+            'png'  => ['image/png'],
+            'gif'  => ['image/gif'],
+            'pdf'  => ['application/pdf'],
+            'svg'  => ['image/svg+xml', 'text/xml', 'application/xml'],
+        ];
+
+        // Check actual MIME type of the file
+        if (function_exists('finfo_open')) {
+            $finfo = @finfo_open(FILEINFO_MIME_TYPE);
+            if ($finfo !== false) {
+                $mime_type = finfo_file($finfo, $file['tmp_name']);
+                finfo_close($finfo);
+
+                // Verify if the MIME type matches the file extension's allowed MIME types
+                $expected_mimes = isset($mime_map[$file_extension]) ? $mime_map[$file_extension] : [];
+                if (!empty($expected_mimes) && !in_array($mime_type, $expected_mimes)) {
+                    return ['success' => false, 'message' => 'محتوى الملف غير صالح أو لا يتطابق مع امتداده.'];
+                }
+            }
         }
         
         $file_name = 'ad_' . uniqid() . '.' . $file_extension;

@@ -1,314 +1,500 @@
 <?php
-// Ensure the PhpSpreadsheet library is available
-if (file_exists('../vendor/autoload.php')) {
-    require '../vendor/autoload.php';
-} else {
-    die("Error: The PhpSpreadsheet library is not found. Please install it via Composer: `composer require phpoffice/phpspreadsheet`");
-}
-use PhpOffice\PhpSpreadsheet\IOFactory;
+// import.php - CSV Import Script for Programs
+// Allows importing programs from Google Forms CSV export
 
-// Initialize dependencies and controller
 include_once '../includes/db_connect.php';
 include_once 'AdminController.php';
+
 $adminController = new AdminController($pdo);
+$page_title = 'استيراد برامج من CSV';
+$adminController->requirePermission('can_add_programs', 'manage_programs.php');
 
-// Page settings
-$page_title = 'استيراد وتصدير البرامج';
-$error = null;
-$success = null;
-$import_summary = [];
+$import_results = [];
 
-// Security check: require permission before any output
-$adminController->requirePermission('can_add_programs');
-
-// Handle POST logic before rendering the view
-if ($_SERVER['REQUEST_METHOD'] == 'POST') {
-    if (!isset($_POST['csrf_token']) || !hash_equals($_SESSION['csrf_token'], $_POST['csrf_token'])) {
-        $error = "فشل التحقق من الطلب (CSRF).";
-    } elseif (isset($_FILES['excel_file']) && $_FILES['excel_file']['error'] === UPLOAD_ERR_OK) {
-        $file_tmp_path = $_FILES['excel_file']['tmp_name'];
-        $file_name = $_FILES['excel_file']['name'];
-
-        // --- Server-side File Validation ---
-        $allowed_extensions = ['xlsx'];
-        $file_extension = strtolower(pathinfo($file_name, PATHINFO_EXTENSION));
+if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_FILES['csv_file'])) {
+    if (!$adminController->verifyCSRFToken($_POST['csrf_token'])) {
+        $adminController->setErrorMessage("فشل التحقق من الطلب (CSRF).");
+    } else {
+        $file = $_FILES['csv_file'];
+        $errors = [];
         
-        // A more robust check using MIME type is better if fileinfo extension is enabled
-        $finfo = finfo_open(FILEINFO_MIME_TYPE);
-        $file_mime_type = finfo_file($finfo, $file_tmp_path);
-        finfo_close($finfo);
-        $allowed_mime_type = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
-
-        if (!in_array($file_extension, $allowed_extensions) || $file_mime_type !== $allowed_mime_type) {
-            $error = "نوع الملف غير صالح. يرجى رفع ملف بصيغة .xlsx فقط. 🚫";
-        } else {
+        // Validate file
+        if ($file['error'] !== UPLOAD_ERR_OK) {
+            $errors[] = "خطأ في رفع الملف.";
+        }
         
-        try {
-            $spreadsheet = IOFactory::load($file_tmp_path);
-            $sheet = $spreadsheet->getActiveSheet();
-            $data = $sheet->toArray(null, true, true, true);
-
-            if (count($data) < 2) {
-                $error = "ملف الإكسل فارغ أو يحتوي على صف الرأس فقط.";
-            } else {
-                // Map Arabic headers to DB columns
-                $header_row = array_shift($data); // Get and remove header row
-                $header_map = [
-                    'عنوان البرنامج' => 'title', 'الجهة المنظمة' => 'organizer', 'الوصف' => 'description',
-                    'المنطقة/الاتجاه' => 'Direction', 'الموقع (الحي)' => 'location', 'تاريخ البدء' => 'start_date',
-                    'تاريخ الانتهاء' => 'end_date', 'المدة' => 'duration', 'الفئة العمرية' => 'age_group',
-                    'السعر' => 'price', 'رابط التسجيل' => 'registration_link', 'رابط خرائط جوجل' => 'google_map',
-                ];
-
-                $db_columns_map = [];
-                foreach ($header_row as $col_letter => $header_text) {
-                    if (isset($header_map[trim($header_text)])) {
-                        $db_columns_map[$col_letter] = $header_map[trim($header_text)];
-                    }
-                }
-
-                if (empty($db_columns_map) || !in_array('title', $db_columns_map)) {
-                     $error = "ملف الإكسل لا يحتوي على الأعمدة المطلوبة أو أن أسماء الأعمدة غير متطابقة. يجب أن يحتوي على 'عنوان البرنامج' على الأقل.";
-                } else {
-                    $imported_count = 0;
-                    $failed_count = 0;
-                    $failed_rows_details = [];
-
-                    $pdo->beginTransaction();
-
-                    foreach ($data as $row_index => $row) {
-                        $program_data = [];
-                        foreach ($db_columns_map as $col_letter => $db_col) {
-                            $program_data[$db_col] = $row[$col_letter] ?? null;
-                        }
-
-                        // Basic validation: title is required
-                        if (empty(trim($program_data['title']))) {
-                            $failed_count++;
-                            $failed_rows_details[] = "الصف " . $row_index . ": حقل 'عنوان البرنامج' فارغ.";
-                            continue;
-                        }
-
-                        // Imported programs are considered reviewed by default
-                        $program_data['status'] = 'reviewed'; 
-                        
-                        $columns_to_insert = array_keys($program_data);
-                        $placeholders = array_fill(0, count($columns_to_insert), '?');
-                        
-                        $sql = "INSERT INTO programs (" . implode(', ', array_map(fn($c) => "`$c`", $columns_to_insert)) . ") VALUES (" . implode(', ', $placeholders) . ")";
-                        $stmt = $pdo->prepare($sql);
-                        
-                        if ($stmt->execute(array_values($program_data))) {
-                            $imported_count++;
-                        } else {
-                            $failed_count++;
-                            $failed_rows_details[] = "الصف " . $row_index . ": فشل الإدخال في قاعدة البيانات.";
-                        }
-                    }
-
-                    $pdo->commit();
-
-                    $success = "اكتملت عملية الاستيراد!";
-                    $import_summary = [
-                        'imported' => $imported_count,
-                        'failed' => $failed_count,
-                        'errors' => $failed_rows_details
-                    ];
-                }
+        $ext = strtolower(pathinfo($file['name'], PATHINFO_EXTENSION));
+        if ($ext !== 'csv') {
+            $errors[] = "يرجى رفع ملف CSV فقط.";
+        }
+        
+        if (empty($errors)) {
+            // Use the CSV mapping to Google Forms columns
+            // Google Forms exports columns in Arabic as header names
+            $column_mapping = [
+                'اسم الجهة'                 => 'organizer_name',
+                'اسم الجهة الفرعي'          => 'organizer_department',
+                'مسؤولة التواصل في حال وجود استفسار' => 'entry_officer_name',
+                'رقم جوال مسؤول التواصل'     => 'entry_officer_phone',
+                'اسم البرنامج'              => 'title',
+                'وصف مختصر للبرنامج'        => 'description',
+                'نوع البرنامج'              => 'program_type',
+                'مقر البرنامج'              => 'venue_name',
+                'حضوري/ عن بعد'             => 'attendance_type',
+                'الموقع على خرائط جوجل'     => 'google_map',
+                'مكان البرنامج حسب الجهات:' => 'Direction',
+                'الفئة  المستهدفة'          => 'age_group',
+                'أي ملاحظات على الفئات'     => 'target_notes',
+                'تاريخ البداية'             => 'start_date',
+                'تاريخ النهاية'             => 'end_date',
+                'مدة البنامج'              => 'duration',
+                'البرنامج هل هو مجاني او مدفوع' => 'is_free',
+                'قيمة الرسوم'               => 'price',
+                'ملاحظات على الرسوم'        => 'price_notes',
+                'الصق رابط التسجيل هنا'     => 'registration_link',
+                'اي ملاحظات تودون كتابتها عن البرنامج' => 'program_notes',
+                'ارفاق التصميم الإعلاني أو الملف التعريفي للمشروع' => 'ad_link',
+            ];
+            
+            // Default organizer
+            $default_organizer_name = $_POST['default_organizer'] ?? '';
+            if (empty($default_organizer_name)) {
+                $errors[] = "يرجى تحديد اسم الجهة الافتراضية أو اختيار 'تحديد من CSV'.";
             }
-        } catch (Exception $e) {
-            $error = "حدث خطأ أثناء قراءة ملف الإكسل: " . $e->getMessage();
-            if ($pdo->inTransaction()) {
-                $pdo->rollBack();
+            
+            if (empty($errors)) {
+                try {
+                    // Open CSV file with UTF-8 BOM handling
+                    $handle = fopen($file['tmp_name'], 'r');
+                    if (!$handle) {
+                        $errors[] = "لا يمكن فتح الملف.";
+                    } else {
+                        // Check for BOM
+                        $bom = fread($handle, 3);
+                        if ($bom !== "\xEF\xBB\xBF") {
+                            rewind($handle); // No BOM, start from beginning
+                        }
+                        
+                        // Read header row
+                        $headers = fgetcsv($handle);
+                        if (!$headers) {
+                            $errors[] = "الملف لا يحتوي على بيانات (صف الرؤوس مفقود).";
+                        } else {
+                            // Normalize headers: trim and handle extra spaces
+                            $headers = array_map(function($h) {
+                                return trim(trim($h), "\"'\t ");
+                            }, $headers);
+                            
+                            // Map CSV columns to DB columns
+                            $db_columns = [];
+                            $unmatched_headers = [];
+                            foreach ($headers as $index => $header) {
+                                if (isset($column_mapping[$header])) {
+                                    $db_columns[$index] = $column_mapping[$header];
+                                } else {
+                                    // Try to find partial match
+                                    $found = false;
+                                    foreach ($column_mapping as $csv_col => $db_col) {
+                                        if (strpos($header, $csv_col) !== false || strpos($csv_col, $header) !== false) {
+                                            $db_columns[$index] = $db_col;
+                                            $found = true;
+                                            break;
+                                        }
+                                    }
+                                    if (!$found) {
+                                        $unmatched_headers[] = $header;
+                                    }
+                                }
+                            }
+                            
+                            // Initialize counters
+                            $imported = 0;
+                            $skipped = 0;
+                            $row_errors = [];
+                            
+                            // Find organizer or create it
+                            $organizer_id = null;
+                            if ($default_organizer_name !== 'from_csv') {
+                                // Find existing organizer or create new one
+                                $stmt = $pdo->prepare("SELECT id FROM organizers WHERE name = ?");
+                                $stmt->execute([$default_organizer_name]);
+                                $existing = $stmt->fetch(PDO::FETCH_ASSOC);
+                                if ($existing) {
+                                    $organizer_id = $existing['id'];
+                                } else {
+                                    $stmt = $pdo->prepare("INSERT INTO organizers (name) VALUES (?)");
+                                    $stmt->execute([$default_organizer_name]);
+                                    $organizer_id = $pdo->lastInsertId();
+                                }
+                            }
+                            
+                            // Read data rows
+                            $row_num = 1; // Header is row 1
+                            while (($row = fgetcsv($handle)) !== false) {
+                                $row_num++;
+                                $data = [];
+                                
+                                // Map CSV row to associative array
+                                foreach ($db_columns as $col_index => $db_col) {
+                                    if (isset($row[$col_index])) {
+                                        $data[$db_col] = trim($row[$col_index]);
+                                    }
+                                }
+                                
+                                // Skip empty rows
+                                if (empty($data['title']) && empty($data['organizer_name'])) {
+                                    continue;
+                                }
+                                
+                                try {
+                                    $pdo->beginTransaction();
+                                    
+                                    // Handle organizer
+                                    if ($default_organizer_name === 'from_csv' && !empty($data['organizer_name'])) {
+                                        $stmt = $pdo->prepare("SELECT id FROM organizers WHERE name = ?");
+                                        $stmt->execute([$data['organizer_name']]);
+                                        $existing = $stmt->fetch(PDO::FETCH_ASSOC);
+                                        if ($existing) {
+                                            $resolved_org_id = $existing['id'];
+                                            // Update organizer info
+                                            $stmt = $pdo->prepare("UPDATE organizers SET 
+                                                sub_name = COALESCE(NULLIF(?, ''), sub_name),
+                                                entry_officer_name = COALESCE(NULLIF(?, ''), entry_officer_name),
+                                                entry_officer_phone = COALESCE(NULLIF(?, ''), entry_officer_phone)
+                                                WHERE id = ?");
+                                            $stmt->execute([
+                                                $data['organizer_department'] ?? null,
+                                                $data['entry_officer_name'] ?? null,
+                                                $data['entry_officer_phone'] ?? null,
+                                                $resolved_org_id
+                                            ]);
+                                        } else {
+                                            $stmt = $pdo->prepare("INSERT INTO organizers (name, department, entry_officer_name, entry_officer_phone) VALUES (?, ?, ?, ?)");
+                                            $stmt->execute([
+                                                $data['organizer_name'],
+                                                $data['organizer_department'] ?? null,
+                                                $data['entry_officer_name'] ?? null,
+                                                $data['entry_officer_phone'] ?? null
+                                            ]);
+                                            $resolved_org_id = $pdo->lastInsertId();
+                                        }
+                                    } else {
+                                        $resolved_org_id = $organizer_id;
+                                    }
+                                    
+                                    // Prepare program data
+                                    $program_data = [
+                                        'organizer_id' => $resolved_org_id,
+                                        'title' => $data['title'] ?? '',
+                                        'description' => $data['description'] ?? '',
+                                        'program_type' => $data['program_type'] ?? null,
+                                        'Direction' => $data['Direction'] ?? null,
+                                        'venue_name' => $data['venue_name'] ?? $data['location'] ?? null,
+                                        'location' => $data['location'] ?? null,
+                                        'attendance_type' => $data['attendance_type'] ?? 'حضوري',
+                                        'start_date' => $data['start_date'] ?? null,
+                                        'end_date' => $data['end_date'] ?? null,
+                                        'duration' => $data['duration'] ?? null,
+                                        'is_free' => ($data['is_free'] ?? '') === 'مدفوع' ? '0' : '1',
+                                        'age_group' => $data['age_group'] ?? null,
+                                        'target_notes' => $data['target_notes'] ?? null,
+                                        'price' => $data['price'] ?? null,
+                                        'price_notes' => $data['price_notes'] ?? null,
+                                        'registration_link' => $data['registration_link'] ?? null,
+                                        'google_map' => $data['google_map'] ?? null,
+                                        'ad_link' => $data['ad_link'] ?? null,
+                                        'program_notes' => $data['program_notes'] ?? null,
+                                        'status' => 'reviewed',
+                                    ];
+                                    
+                                    // Check if program with same title + organizer already exists
+                                    $stmt = $pdo->prepare("SELECT id FROM programs WHERE title = ? AND organizer_id = ?");
+                                    $stmt->execute([$program_data['title'], $resolved_org_id]);
+                                    if ($stmt->fetch()) {
+                                        // Skip - already exists
+                                        $pdo->rollBack();
+                                        $skipped++;
+                                        continue;
+                                    }
+                                    
+                                    // Dynamic INSERT based on DB columns
+                                    $db_cols = [];
+                                    $placeholders = [];
+                                    $params = [];
+                                    
+                                    $stmt = $pdo->query("DESCRIBE programs");
+                                    $table_columns_info = $stmt->fetchAll(PDO::FETCH_ASSOC);
+                                    
+                                    foreach ($table_columns_info as $column_info) {
+                                        $col_name = $column_info['Field'];
+                                        if (in_array($col_name, ['id', 'created_at', 'submitted_at', 'latitude', 'longitude'])) continue;
+                                        
+                                        if (isset($program_data[$col_name])) {
+                                            $db_cols[] = "`$col_name`";
+                                            $placeholders[] = '?';
+                                            $val = $program_data[$col_name];
+                                            $params[] = (empty($val) && $column_info['Null'] === 'YES') ? null : $val;
+                                        }
+                                    }
+                                    
+                                    if (!empty($params)) {
+                                        $sql = "INSERT INTO programs (" . implode(', ', $db_cols) . ") VALUES (" . implode(', ', $placeholders) . ")";
+                                        $stmt = $pdo->prepare($sql);
+                                        $stmt->execute($params);
+                                        $pdo->commit();
+                                        $imported++;
+                                    } else {
+                                        $pdo->rollBack();
+                                        $skipped++;
+                                    }
+                                    
+                                } catch (Exception $e) {
+                                    if ($pdo->inTransaction()) {
+                                        $pdo->rollBack();
+                                    }
+                                    $row_errors[] = "الصف {$row_num}: " . $e->getMessage();
+                                    $skipped++;
+                                }
+                            }
+                            
+                            $import_results = [
+                                'imported' => $imported,
+                                'skipped' => $skipped,
+                                'errors' => $row_errors,
+                                'unmatched' => $unmatched_headers,
+                            ];
+                            
+                            if ($imported > 0) {
+                                $adminController->setSuccessMessage("تم استيراد {$imported} برنامج بنجاح.");
+                            }
+                            if ($skipped > 0) {
+                                $adminController->setWarningMessage("تم تخطي {$skipped} صف.");
+                            }
+                        }
+                        fclose($handle);
+                    }
+                } catch (Exception $e) {
+                    $errors[] = "خطأ عام: " . $e->getMessage();
+                }
             }
         }
-        } // End of file validation else block
-    } else {
-        $error = "يرجى اختيار ملف إكسل لرفعه.";
+        
+        if (!empty($errors)) {
+            $adminController->setErrorMessage(implode('<br>', $errors));
+        }
     }
 }
 
-// Render the view
 $adminController->renderHeader($page_title);
-if ($error) {
-    $adminController->setErrorMessage($error);
-}
-if ($success) {
-    $adminController->setSuccessMessage($success);
-}
 $adminController->renderMessages();
 ?>
-<style>
-    .import-card h2 {
-            color: var(--primary);
-            font-size: 1.8rem;
-            margin-bottom: 2rem;
-            position: relative;
-            padding-bottom: 10px;
-            display: flex;
-            align-items: center;
-            gap: 10px;
-        }
-        .import-card h2::after {
-            content: '';
-            position: absolute;
-            bottom: 0;
-            right: 0;
-            width: 60px;
-            height: 3px;
-            background: var(--secondary);
-            border-radius: 2px;
-        }
-        .instructions {
-            background-color: #f8f9fa;
-            border-right: 4px solid var(--accent);
-            padding: 1.5rem;
-            margin: 2rem 0;
-            border-radius: 8px;
-        }
-        .instructions h4 { margin-top: 0; color: var(--dark); font-size: 1.2rem; margin-bottom: 1rem; }
-        .instructions ul { padding-right: 20px; list-style-type: '✓ '; }
-        .instructions ul li { margin-bottom: 0.5rem; }
 
-        .upload-form { margin-top: 2rem; }
-        .file-upload-wrapper {
-            border: 3px dashed #ccc;
-            border-radius: 15px;
-            padding: 2rem;
-            text-align: center;
-            cursor: pointer;
-            transition: all 0.3s ease;
-            position: relative;
-        }
-        .file-upload-wrapper:hover { border-color: var(--primary); background-color: #fdfaff; }
-        .file-upload-wrapper input[type="file"] { display: none; }
-        .file-upload-label { font-size: 1.1rem; color: #555; font-weight: 500; }
-        .file-upload-label i { font-size: 2.5rem; color: var(--primary); display: block; margin-bottom: 1rem; }
-        #file-name-display { margin-top: 1rem; font-weight: bold; color: var(--accent); }
+<div class="import-section">
+    <div class="import-card">
+        <h2><i class="fas fa-file-import"></i> استيراد برامج من CSV</h2>
+        
+        <div class="import-info">
+            <p><i class="fas fa-info-circle"></i> هذا النموذج يتيح استيراد البرامج من ملف CSV المصدر من <strong>نماذج جوجل</strong>.</p>
+            <p>يجب أن يحتوي ملف CSV على الرؤوس بالعربية كما هي في نموذج حصر البرامج.</p>
+        </div>
 
-        .upload-btn { background: var(--primary); color: white; border: none; padding: 12px 25px; border-radius: 10px; font-weight: 600; cursor: pointer; transition: all 0.3s ease; font-size: 1.1rem; margin-top: 1.5rem; width: 100%; }
-        .upload-btn:hover { background: #7a1fc2; transform: translateY(-2px); }
-        .upload-btn:disabled { background: #ccc; cursor: not-allowed; transform: none; }
-
-        .summary { margin-top: 2.5rem; padding-top: 2rem; border-top: 1px solid #eee; }
-        .summary h4 { font-size: 1.2rem; margin-bottom: 1rem; }
-        .summary .success { color: var(--success); }
-        .summary .error { color: var(--secondary); }
-        .summary ul { max-height: 200px; overflow-y: auto; background: #f8f9fa; padding: 15px; border-radius: 8px; border: 1px solid #e9ecef; list-style-position: inside; }
-        .summary ul li { padding: 5px; border-bottom: 1px solid #e9ecef; }
-        .summary ul li:last-child { border-bottom: none; }
-
-        /* New styles for export section */
-        .export-section-card {
-            background: linear-gradient(135deg, #e0f7fa, #b2ebf2);
-            border: 1px solid var(--accent);
-            border-radius: 15px;
-            padding: 1.5rem;
-            margin-bottom: 2rem;
-            text-align: right;
-        }
-        .export-section-card h3 {
-            color: #00796b;
-            font-size: 1.3rem;
-            margin-bottom: 0.75rem;
-            display: flex;
-            align-items: center;
-            gap: 10px;
-        }
-        .export-section-card p {
-            color: #004d40;
-            margin-bottom: 1rem;
-        }
-        .export-btn {
-            display: inline-block;
-            background: var(--accent);
-            color: white;
-            padding: 10px 20px;
-            border-radius: 8px;
-            text-decoration: none;
-            font-weight: 600;
-            transition: all 0.3s ease;
-        }
-        .export-btn:hover {
-            background: #26a69a;
-            transform: translateY(-2px);
-            box-shadow: 0 4px 10px rgba(0,0,0,0.1);
-        }
-</style>
-
-<section class="dashboard-section">
-    <div class="dashboard-card import-card">
-        <h2><i class="fas fa-exchange-alt"></i> <?php echo htmlspecialchars($page_title); ?></h2>
-
-        <div class="content-wrapper">
-            <!-- Export Section -->
-            <div class="export-section-card">
-                <h3><i class="fas fa-file-export"></i> تصدير البرامج</h3>
-                <p>يمكنك تصدير جميع البرامج الموجودة في النظام إلى ملف Excel. هذا الملف يمكن استخدامه كقالب لعملية الاستيراد لاحقًا.</p>
-                <a href="export.php" class="export-btn"><i class="fas fa-download"></i> تحميل ملف التصدير</a>
+        <form method="POST" enctype="multipart/form-data" class="import-form">
+            <input type="hidden" name="csrf_token" value="<?php echo htmlspecialchars($adminController->csrf_token); ?>">
+            
+            <div class="form-group">
+                <label for="csv_file"><i class="fas fa-file-csv"></i> اختر ملف CSV</label>
+                <input type="file" id="csv_file" name="csv_file" accept=".csv" required>
             </div>
-
-
-            <?php if (!empty($import_summary)): ?>
-            <div class="summary">
-                <h4>ملخص عملية الاستيراد:</h4>
-                <p><strong class="success">تم استيراد <?php echo $import_summary['imported']; ?> برنامج بنجاح.</strong></p>
-                <?php if (!empty($import_summary['errors'])): ?>
-                    <p><strong class="error">فشل استيراد <?php echo $import_summary['failed']; ?> برنامج.</strong></p>
-                    <p>تفاصيل الأخطاء:</p>
+            
+            <div class="form-group">
+                <label for="default_organizer"><i class="fas fa-building"></i> الجهة الافتراضية</label>
+                <select id="default_organizer" name="default_organizer">
+                    <option value="from_csv">تحديد من ملف CSV (حسب اسم الجهة)</option>
+                    <?php
+                    $orgs = $pdo->query("SELECT id, name FROM organizers ORDER BY name ASC")->fetchAll(PDO::FETCH_ASSOC);
+                    foreach ($orgs as $org) {
+                        echo "<option value='" . htmlspecialchars($org['name']) . "'>" . htmlspecialchars($org['name']) . "</option>";
+                    }
+                    ?>
+                </select>
+                <span class="form-note">اختر 'تحديد من ملف CSV' إذا كان الملف يحتوي على أسماء الجهات، أو اختر جهة معينة لربط جميع البرامج بها.</span>
+            </div>
+            
+            <div class="form-actions-container">
+                <a href="manage_programs.php" class="back-btn-inline"><i class="fas fa-arrow-right"></i> رجوع</a>
+                <button type="submit" class="submit-btn"><i class="fas fa-upload"></i> استيراد</button>
+            </div>
+        </form>
+        
+        <?php if (!empty($import_results)): ?>
+        <div class="import-results">
+            <h3><i class="fas fa-chart-bar"></i> نتائج الاستيراد</h3>
+            <div class="result-stats">
+                <div class="stat success">
+                    <span class="stat-number"><?php echo $import_results['imported']; ?></span>
+                    <span class="stat-label">تم الاستيراد</span>
+                </div>
+                <div class="stat warning">
+                    <span class="stat-number"><?php echo $import_results['skipped']; ?></span>
+                    <span class="stat-label">تم التخطي</span>
+                </div>
+            </div>
+            
+            <?php if (!empty($import_results['unmatched'])): ?>
+                <div class="result-details">
+                    <h4>أعمدة غير متطابقة:</h4>
                     <ul>
-                        <?php foreach ($import_summary['errors'] as $err): ?>
-                            <li><?php echo htmlspecialchars($err); ?></li>
+                        <?php foreach ($import_results['unmatched'] as $h): ?>
+                            <li><?php echo htmlspecialchars($h); ?></li>
                         <?php endforeach; ?>
                     </ul>
-                <?php endif; ?>
-            </div>
-            <?php endif; ?>
-
-            <div class="instructions">
-                <h3><i class="fas fa-file-import"></i> استيراد برامج من ملف إكسل</h3>
-                <h4>تعليمات الاستيراد:</h4>
-                <ul>
-                    <li>يجب أن يكون الملف بصيغة `.xlsx`.</li>
-                    <li>يجب أن يحتوي الصف الأول على أسماء الأعمدة باللغة العربية كما في ملف التصدير.</li>
-                    <li>عمود "عنوان البرنامج" إجباري لكل برنامج.</li>
-                    <li>سيتم تعيين حالة جميع البرامج المستوردة إلى "تمت المراجعة" تلقائياً.</li>
-                    <li>يمكنك استخدام قسم التصدير أعلاه لإنشاء ملف Excel لاستخدامه كقالب.</li>
-                </ul>
-            </div>
-
-            <form method="POST" enctype="multipart/form-data" class="upload-form">
-                <input type="hidden" name="csrf_token" value="<?php echo htmlspecialchars($adminController->csrf_token); ?>">
-                <div class="file-upload-wrapper">
-                    <input type="file" name="excel_file" id="excel_file" required accept=".xlsx, application/vnd.openxmlformats-officedocument.spreadsheetml.sheet">
-                    <label for="excel_file" class="file-upload-label">
-                        <i class="fas fa-cloud-upload-alt"></i>
-                        <span>اسحب الملف إلى هنا أو انقر للاختيار</span>
-                    </label>
-                    <div id="file-name-display"></div>
                 </div>
-                <button type="submit" class="upload-btn" id="upload-btn" disabled><i class="fas fa-upload"></i> رفع واستيراد</button>
-            </form>
+            <?php endif; ?>
+            
+            <?php if (!empty($import_results['errors'])): ?>
+                <div class="result-details">
+                    <h4>أخطاء:</h4>
+                    <ul>
+                        <?php foreach ($import_results['errors'] as $e): ?>
+                            <li><?php echo htmlspecialchars($e); ?></li>
+                        <?php endforeach; ?>
+                    </ul>
+                </div>
+            <?php endif; ?>
         </div>
+        <?php endif; ?>
     </div>
-</section>
+</div>
 
-<script>
-    document.addEventListener('DOMContentLoaded', function() {
-        const fileInput = document.getElementById('excel_file');
-        const fileNameDisplay = document.getElementById('file-name-display');
-        const uploadBtn = document.getElementById('upload-btn');
+<style>
+.import-section {
+    max-width: 800px;
+    margin: 20px auto;
+}
 
-        fileInput.addEventListener('change', function() {
-            if (fileInput.files.length > 0) {
-                fileNameDisplay.textContent = `الملف المختار: ${fileInput.files[0].name}`;
-                uploadBtn.disabled = false;
-            } else {
-                fileNameDisplay.textContent = '';
-                uploadBtn.disabled = true;
-            }
-        });
-    });
-</script>
+.import-card {
+    background: white;
+    border-radius: 12px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+    padding: 2rem;
+}
 
-<?php $adminController->renderFooter(); ?>
+.import-card h2 {
+    color: #8a2be2;
+    margin-bottom: 1.5rem;
+    text-align: center;
+}
+
+.import-info {
+    background: #f0f4ff;
+    border-radius: 8px;
+    padding: 15px;
+    margin-bottom: 20px;
+    border-right: 4px solid #8a2be2;
+}
+
+.import-info p {
+    margin: 5px 0;
+}
+
+.import-form .form-group {
+    margin-bottom: 20px;
+}
+
+.import-form label {
+    font-weight: 500;
+    display: block;
+    margin-bottom: 8px;
+    color: #212529;
+}
+
+.import-form input[type="file"],
+.import-form select {
+    width: 100%;
+    padding: 12px;
+    border: 2px solid #e0e0e0;
+    border-radius: 8px;
+    font-family: 'Tajawal', sans-serif;
+    font-size: 0.95rem;
+}
+
+.import-form input[type="file"]:hover,
+.import-form select:focus {
+    border-color: #8a2be2;
+}
+
+.import-results {
+    margin-top: 30px;
+    padding: 20px;
+    background: #f8f9fa;
+    border-radius: 10px;
+}
+
+.import-results h3 {
+    color: #8a2be2;
+    margin-bottom: 15px;
+}
+
+.result-stats {
+    display: flex;
+    gap: 20px;
+    margin-bottom: 20px;
+}
+
+.stat {
+    padding: 15px 25px;
+    border-radius: 8px;
+    text-align: center;
+    flex: 1;
+}
+
+.stat.success {
+    background: #d4edda;
+    color: #155724;
+}
+
+.stat.warning {
+    background: #fff3cd;
+    color: #856404;
+}
+
+.stat-number {
+    display: block;
+    font-size: 2rem;
+    font-weight: 700;
+}
+
+.result-details {
+    margin-top: 15px;
+}
+
+.result-details h4 {
+    color: #495057;
+    margin-bottom: 10px;
+}
+
+.result-details ul {
+    list-style: none;
+    padding: 0;
+}
+
+.result-details li {
+    padding: 5px 10px;
+    margin-bottom: 5px;
+    background: white;
+    border-radius: 4px;
+    font-size: 0.9rem;
+    border-right: 3px solid #ff6b6b;
+}
+
+.form-note {
+    display: block;
+    margin-top: 5px;
+    font-size: 0.85rem;
+    color: #666;
+}
+</style>
+
+<?php
+$adminController->renderFooter();
+?>

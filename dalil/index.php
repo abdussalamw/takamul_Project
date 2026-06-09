@@ -27,9 +27,10 @@ if (isset($_GET['search']) && !empty(trim($_GET['search']))) {
     $params[] = $search_term;
 }
 
-$sql = "SELECT * FROM programs";
+// دائماً نبدأ بفلتر البرامج المنشورة فقط (تُخفى المعلّقة والمرفوضة والغير منشورة)
+$sql = "SELECT programs.*, COALESCE(organizers.name, programs.organizer) as organizer FROM programs LEFT JOIN organizers ON programs.organizer_id = organizers.id WHERE programs.status = 'published'";
 if (!empty($where_clauses)) {
-    $sql .= " WHERE " . implode(" AND ", $where_clauses);
+    $sql .= " AND " . implode(" AND ", $where_clauses);
 }
 
 // الفرز
@@ -60,13 +61,13 @@ foreach ($programs as $program) {
     $grouped_programs[$direction][] = $program;
 }
 
-// جلب القيم الفريدة للفلاتر
-$locations = $pdo->query("SELECT DISTINCT Direction FROM programs WHERE Direction IS NOT NULL ORDER BY Direction")->fetchAll(PDO::FETCH_COLUMN);
-$age_groups = $pdo->query("SELECT DISTINCT age_group FROM programs WHERE age_group IS NOT NULL ORDER BY age_group")->fetchAll(PDO::FETCH_COLUMN);
-$durations = $pdo->query("SELECT DISTINCT duration FROM programs WHERE duration IS NOT NULL ORDER BY duration")->fetchAll(PDO::FETCH_COLUMN);
+// جلب القيم الفريدة للفلاتر — من البرامج المتاحة للعرض فقط
+$locations  = $pdo->query("SELECT DISTINCT Direction FROM programs WHERE status = 'published' AND Direction IS NOT NULL AND Direction != '' ORDER BY Direction")->fetchAll(PDO::FETCH_COLUMN);
+$age_groups = $pdo->query("SELECT DISTINCT age_group FROM programs WHERE status = 'published' AND age_group IS NOT NULL AND age_group != '' ORDER BY age_group")->fetchAll(PDO::FETCH_COLUMN);
+$durations  = $pdo->query("SELECT DISTINCT duration FROM programs WHERE status = 'published' AND duration IS NOT NULL AND duration != '' ORDER BY duration")->fetchAll(PDO::FETCH_COLUMN);
 
-// استعلام لعدد البرامج الكلي
-$total_stmt = $pdo->query("SELECT COUNT(*) FROM programs");
+// عدد البرامج المتاحة للعرض فقط
+$total_stmt     = $pdo->query("SELECT COUNT(*) FROM programs WHERE status = 'published'");
 $total_programs = $total_stmt->fetchColumn();
 ?>
 <?php
@@ -145,26 +146,161 @@ if (isset($_GET['ajax']) && $_GET['ajax'] == '1') {
 include 'programs.php'; 
 ?>
 
+<!-- Leaflet Map Library CSS & JS -->
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
 <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
 <script>
     $(document).ready(function() {
-        // --- استخدام تفويض الأحداث للمحتوى الديناميكي ---
-        // هذا يضمن أن الأزرار ستعمل حتى بعد تحديث المحتوى بواسطة AJAX.
+        var activeView = 'cards'; // 'cards', 'table', or 'map'
+        var mapInstance = null;
 
-        // التبديل بين عرض البطاقات والجدول
+        // دالة لتهيئة وتحديث الخريطة التفاعلية
+        function initMap() {
+            // إزالة نسخة الخريطة القديمة لتجنب أخطاء التهيئة المتكررة بعد AJAX
+            if (mapInstance !== null) {
+                try {
+                    mapInstance.remove();
+                } catch(e) {
+                    console.error("Error removing Leaflet map instance:", e);
+                }
+                mapInstance = null;
+            }
+
+            var mapContainer = $('#map');
+            if (mapContainer.length === 0) return;
+
+            // جلب البيانات المصدرة كـ JSON من الصفحة
+            var programsData = [];
+            try {
+                programsData = JSON.parse($('#map-programs-data').html() || '[]');
+            } catch(e) {
+                console.error("Error parsing map data JSON:", e);
+                return;
+            }
+
+            if (programsData.length === 0) {
+                mapContainer.html('<div style="text-align:center; padding: 50px; color: #777;">لا توجد برامج تطابق معايير البحث الحالية لعرضها على الخريطة.</div>');
+                return;
+            }
+
+            // إنشاء الخريطة وتثبيت المركز الافتراضي على الرياض
+            mapInstance = L.map('map').setView([24.7136, 46.6753], 11);
+
+            // إضافة طبقة الخريطة من OpenStreetMap
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+            }).addTo(mapInstance);
+
+            var bounds = [];
+
+            // إضافة علامات للبرامج المتوفرة
+            programsData.forEach(function(loc) {
+                if (loc.lat && loc.lng) {
+                    var latLng = [loc.lat, loc.lng];
+                    bounds.push(latLng);
+
+                    // رسم دائرة تفاعلية كعلامة على الخريطة
+                    var marker = L.circleMarker(latLng, {
+                        radius: 12,
+                        fillColor: "#8a2be2", // اللون الأساسي للموقع
+                        color: "#fff",
+                        weight: 2,
+                        opacity: 1,
+                        fillOpacity: 0.8
+                    }).addTo(mapInstance);
+
+                    // إعداد بطاقة منبثقة بتصميم أنيق يتوافق مع البطاقات الأساسية للموقع
+                    var isFree = (loc.price == 0 || ['مجاناً', 'مجاني'].includes(String(loc.price).trim().toLowerCase()));
+                    var priceHtml = '<div class="program-fee ' + (isFree ? 'free-badge' : '') + '">' + (isFree ? 'مجاناً' : loc.price) + '</div>';
+                    
+                    var words = (loc.description || '').split(' ');
+                    var shortDesc = words.slice(0, 15).join(' ') + (words.length > 15 ? '...' : '');
+
+                    var popupContent = `
+                        <div class="map-popup-card" style="text-align: right; direction: rtl; font-family: 'Tajawal', sans-serif; padding: 5px;">
+                            <div class="card-header" style="border-bottom: 1px solid #eee; padding-bottom: 8px; margin-bottom: 8px;">
+                                <h3 class="program-title" style="font-size: 1.1rem; font-weight: 700; margin: 0 0 5px 0; color: #212529;">${loc.title}</h3>
+                                <div class="organization" style="font-size: 0.85rem; color: #666; display: flex; align-items: center; gap: 5px;">
+                                    <i class="fas fa-building" style="color: #8a2be2;"></i>
+                                    ${loc.organizer}
+                                </div>
+                            </div>
+                            <div class="card-body" style="padding: 5px 0;">
+                                <div class="program-details" style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; font-size: 0.8rem; margin-bottom: 8px;">
+                                    <div class="detail-item" style="display: flex; align-items: center; gap: 5px;">
+                                        <i class="fas fa-map-marker-alt" style="color: #8a2be2;"></i>
+                                        <span>${loc.location}</span>
+                                    </div>
+                                    <div class="detail-item" style="display: flex; align-items: center; gap: 5px;">
+                                        <i class="fas fa-clock" style="color: #8a2be2;"></i>
+                                        <span>${loc.duration}</span>
+                                    </div>
+                                    <div class="detail-item" style="display: flex; align-items: center; gap: 5px;">
+                                        <i class="fas fa-calendar" style="color: #8a2be2;"></i>
+                                        <span>${loc.start_date}</span>
+                                    </div>
+                                    <div class="detail-item" style="display: flex; align-items: center; gap: 5px;">
+                                        <i class="fas fa-user-friends" style="color: #8a2be2;"></i>
+                                        <span>${loc.age_group}</span>
+                                    </div>
+                                </div>
+                                <p class="program-description" style="font-size: 0.85rem; color: #555; line-height: 1.5; margin: 0 0 10px 0;">${shortDesc}</p>
+                            </div>
+                            <div class="card-footer" style="display: flex; justify-content: space-between; align-items: center; border-top: 1px solid #eee; padding-top: 8px;">
+                                ${priceHtml}
+                                <a href="${loc.registration_link || '#'}" class="register-btn" target="_blank" rel="noopener noreferrer" style="background: #8a2be2; color: white; padding: 5px 10px; border-radius: 20px; text-decoration: none; font-size: 0.8rem; font-weight: 600;">سجل الآن</a>
+                            </div>
+                        </div>
+                    `;
+
+                    marker.bindPopup(popupContent, {
+                        minWidth: 280,
+                        maxWidth: 320
+                    });
+                }
+            });
+
+            // ضبط زووم الخريطة تلقائياً ليغطي جميع العلامات المعروضة
+            if (bounds.length > 0) {
+                mapInstance.fitBounds(bounds, { padding: [30, 30] });
+            }
+        }
+
+        // تطبيق وعرض الوضع النشط
+        function applyView() {
+            // إخفاء كافة عروض الحاويات
+            $('#programs-cards-view, #programs-table-view, #programs-map-view').hide();
+            // إزالة الكلاس النشط من كافة الأزرار
+            $('.view-toggle-btn').removeClass('active');
+
+            if (activeView === 'cards') {
+                $('#programs-cards-view').show();
+                $('#show-cards-view-btn').addClass('active');
+            } else if (activeView === 'table') {
+                $('#programs-table-view').show();
+                $('#show-table-view-btn').addClass('active');
+            } else if (activeView === 'map') {
+                $('#programs-map-view').show();
+                $('#show-map-view-btn').addClass('active');
+                initMap();
+            }
+        }
+
+        // --- استخدام تفويض الأحداث للتبديل بين العروض الثلاثة ---
         $(document).on('click', '#show-cards-view-btn', function() {
-            $('#programs-cards-view').show();
-            $('#programs-table-view').hide();
-            // تأكد من أن كلا الزرين (إذا كانا مكررين) يتم تحديثهما
-            $('#show-cards-view-btn').addClass('active');
-            $('#show-table-view-btn').removeClass('active');
+            activeView = 'cards';
+            applyView();
         });
 
         $(document).on('click', '#show-table-view-btn', function() {
-            $('#programs-table-view').show();
-            $('#programs-cards-view').hide();
-            $('#show-table-view-btn').addClass('active');
-            $('#show-cards-view-btn').removeClass('active');
+            activeView = 'table';
+            applyView();
+        });
+
+        $(document).on('click', '#show-map-view-btn', function() {
+            activeView = 'map';
+            applyView();
         });
 
         // التحكم في "قراءة المزيد" / "عرض أقل"
@@ -178,8 +314,10 @@ include 'programs.php';
             $(this).hide().siblings('.read-more').show().siblings('.full-desc').hide().siblings('.short-desc').show();
         });
 
-        // --- فلترة AJAX الفورية ---
+        // تهيئة الحالة الأولية عند تحميل الصفحة لأول مرة
+        applyView();
 
+        // --- فلترة AJAX الفورية ---
         function applyFilters() {
             var form = $('#filter-form');
             var formData = form.serialize();
@@ -200,6 +338,8 @@ include 'programs.php';
                     $('.programs-section').replaceWith(response);
                     // تحديث رابط المتصفح بدون إعادة تحميل الصفحة
                     history.pushState({path: newUrl}, '', newUrl);
+                    // إعادة تطبيق العرض الحالي لضمان عدم ضياعه
+                    applyView();
                 },
                 error: function() {
                     alert('حدث خطأ أثناء تحديث البرامج. يرجى المحاولة مرة أخرى.');
@@ -217,147 +357,5 @@ include 'programs.php';
         });
     });
 </script>
-
-<!-- أنماط جديدة للجداول المقسمة -->
-<style>
-.direction-group {
-    margin-bottom: 2.5rem;
-}
-
-.direction-heading {
-    text-align: right;
-    font-size: 1.5rem;
-    font-weight: 700;
-    color: var(--dark);
-    margin-bottom: 1rem;
-    padding-bottom: 0.75rem;
-    border-bottom: 3px solid var(--primary);
-    display: flex;
-    align-items: center;
-    gap: 10px;
-}
-
-.table-responsive-wrapper {
-    overflow-x: auto;
-    border: 1px solid #ddd;
-    border-radius: 10px;
-    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.05);
-    margin-bottom: 1.5rem;
-}
-
-.programs-table-public {
-    width: 100%;
-    max-width: 1200px;
-    margin: 0 auto; /* تم تعديل الهامش */
-    border-collapse: collapse;
-    font-size: 14px;
-    min-width: 900px; /* يضمن تناسق شكل الجدول قبل التمرير */
-}
-.programs-table-public th, .programs-table-public td {
-    padding: 10px;
-    text-align: right;
-    border: 1px solid #ddd;
-    vertical-align: middle;
-}
-.programs-table-public th {
-    background-color: #f8f9fa;
-    font-weight: bold;
-    white-space: nowrap;
-}
-.programs-table-public td {
-    white-space: normal;
-    word-wrap: break-word;
-    overflow-wrap: break-word;
-}
-.programs-table-public tr:nth-child(even) {
-    background-color: #f2f2f2;
-}
-.programs-table-public tr:hover {
-    background-color: #e9ecef;
-}
-.register-btn-table {
-    color: #fff;
-    background-color: #007bff;
-    padding: 5px 10px;
-    border-radius: 5px;
-    text-decoration: none;
-    display: inline-block;
-    white-space: nowrap;
-}
-.register-btn-table:hover {
-    background-color: #0056b3;
-}
-.view-toggle-btn {
-    padding: 10px 20px;
-    margin: 0 5px;
-    border: none;
-    background-color: #f8f9fa;
-    cursor: pointer;
-    border-radius: 5px;
-}
-.view-toggle-btn.active {
-    background-color: #007bff;
-    color: #fff;
-}
-.read-more, .read-less {
-    color: #007bff;
-    text-decoration: none;
-    font-weight: bold;
-    margin-right: 5px;
-}
-.read-more:hover, .read-less:hover {
-    text-decoration: underline;
-}
-.program-description {
-    margin: 10px 0;
-    line-height: 1.5;
-}
-</style>
-
-<!-- أنماط جديدة لأزرار التبديل بين العرض -->
-<style>
-.programs-header {
-    /* Ensure flex properties are set for alignment */
-    display: flex;
-    justify-content: space-between;
-    align-items: center; /* Align items vertically */
-    flex-wrap: wrap; /* Allow wrapping on smaller screens */
-    gap: 20px; /* Space between items */
-    margin-bottom: 30px;
-}
-
-.view-controls {
-    display: flex; /* Arrange buttons horizontally */
-    gap: 10px; /* Space between buttons */
-}
-
-.view-toggle-btn {
-    padding: 8px 15px; /* Padding similar to action-btn */
-    border: 2px solid #e0e0e0; /* Default border */
-    border-radius: 30px; /* Rounded corners */
-    font-weight: 600;
-    font-size: 0.9rem;
-    cursor: pointer;
-    transition: all 0.3s ease;
-    background-color: white; /* Default background */
-    color: var(--dark); /* Default text color */
-    display: flex; /* Align icon and text */
-    align-items: center;
-    gap: 8px;
-}
-
-.view-toggle-btn:hover, .view-toggle-btn.active {
-    background: var(--primary); /* Active/hover background */
-    color: white; /* Active/hover text color */
-    border-color: var(--primary); /* Active/hover border */
-}
-
-/* إخفاء أزرار التبديل على شاشات الجوال */
-@media (max-width: 768px) {
-    .view-controls {
-        display: none;
-    }
-}
-</style>
 
 <?php include 'includes/footer.php'; ?>

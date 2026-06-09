@@ -5,17 +5,107 @@
 include_once '../includes/db_connect.php';
 include_once 'AdminController.php';
 
-// Initialize controller
 $adminController = new AdminController($pdo);
 $page_title = 'إدارة البرامج';
 $csrf_token = $adminController->csrf_token;
+
+// ========== معالجة طلبات POST (update_status / toggle_full_status) ==========
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    // التحقق من CSRF token
+    if (!isset($_POST['csrf_token']) || !$adminController->verifyCSRFToken($_POST['csrf_token'])) {
+        $adminController->setErrorMessage("فشل التحقق من الطلب (CSRF).");
+    } elseif (isset($_POST['update_status'])) {
+        // معالجة تغيير الحالة (قبول/نشر/رفض)
+        $program_id = filter_var($_POST['program_id'] ?? 0, FILTER_VALIDATE_INT);
+        $new_status = $_POST['new_status'] ?? '';
+        $allowed_statuses = ['pending', 'reviewed', 'published', 'rejected'];
+        
+        if (!$program_id) {
+            $adminController->setErrorMessage("معرف البرنامج غير صالح.");
+        } elseif (!in_array($new_status, $allowed_statuses)) {
+            $adminController->setErrorMessage("الحالة المطلوبة غير صالحة.");
+        } else {
+            // تحديد الصلاحية المطلوبة بناءً على مصدر الإجراء
+            $action_source = $_POST['action_source'] ?? '';
+            
+            if ($action_source === 'publish') {
+                // أي إجراء ياتي من عمود النشر (نشر أو عدم نشر) يتطلب can_publish_programs
+                $required_perm = 'can_publish_programs';
+            } elseif ($action_source === 'review') {
+                // أي إجراء ياتي من عمود المراجعة (قبول أو رفض) يتطلب can_review_programs
+                $required_perm = 'can_review_programs';
+            } else {
+                // الافتراضي: تحديد الصلاحية بناءً على الحالة المطلوبة
+                $status_to_permission = [
+                    'reviewed' => 'can_review_programs',
+                    'rejected' => 'can_review_programs',
+                    'pending'  => 'can_review_programs',
+                    'published' => 'can_publish_programs',
+                ];
+                $required_perm = $status_to_permission[$new_status] ?? 'can_edit_programs';
+            }
+            
+            if (empty($_SESSION['permissions'][$required_perm])) {
+                $adminController->setErrorMessage("ليس لديك صلاحية لهذا الإجراء.");
+            } else {
+                try {
+                    $stmt = $pdo->prepare("UPDATE programs SET status = ? WHERE id = ?");
+                    $stmt->execute([$new_status, $program_id]);
+                    $status_labels = [
+                        'pending' => 'قيد المراجعة',
+                        'reviewed' => 'مقبول',
+                        'published' => 'منشور',
+                        'rejected' => 'مرفوض'
+                    ];
+                    $label = $status_labels[$new_status] ?? $new_status;
+                    $adminController->setSuccessMessage("تم تحديث حالة البرنامج إلى \"$label\" بنجاح ✅");
+                    $adminController->logAction('Update Status', "Changed program #$program_id to '$new_status'");
+                } catch (PDOException $e) {
+                    $adminController->setErrorMessage("خطأ في قاعدة البيانات: " . $e->getMessage());
+                }
+            }
+        }
+    } elseif (isset($_POST['toggle_full_status'])) {
+        // معالجة تبديل حالة التسجيل (متاح/غير متاح)
+        $program_id = filter_var($_POST['program_id'] ?? 0, FILTER_VALIDATE_INT);
+        
+        if (!$program_id) {
+            $adminController->setErrorMessage("معرف البرنامج غير صالح.");
+        } elseif (empty($_SESSION['permissions']['can_edit_programs'])) {
+            $adminController->setErrorMessage("ليس لديك صلاحية لهذا الإجراء.");
+        } else {
+            try {
+                // جلب الحالة الحالية
+                $stmt = $pdo->prepare("SELECT is_full FROM programs WHERE id = ?");
+                $stmt->execute([$program_id]);
+                $current = $stmt->fetch(PDO::FETCH_ASSOC);
+                
+                if (!$current) {
+                    $adminController->setErrorMessage("البرنامج غير موجود.");
+                } else {
+                    $new_full_status = $current['is_full'] ? 0 : 1;
+                    $stmt = $pdo->prepare("UPDATE programs SET is_full = ? WHERE id = ?");
+                    $stmt->execute([$new_full_status, $program_id]);
+                    $status_text = $new_full_status ? 'غير متاح' : 'متاح';
+                    $adminController->setSuccessMessage("تم تغيير حالة التسجيل إلى \"$status_text\" ✅");
+                    $adminController->logAction('Toggle Registration', "Toggled program #$program_id registration to " . ($new_full_status ? 'full' : 'available'));
+                }
+            } catch (PDOException $e) {
+                $adminController->setErrorMessage("خطأ في قاعدة البيانات: " . $e->getMessage());
+            }
+        }
+    }
+    // إعادة التوجيه لتجنب إعادة إرسال النموذج (PRG pattern)
+    header('Location: manage_programs.php');
+    exit;
+}
 
 // Render header
 $adminController->renderHeader($page_title);
 $adminController->renderMessages();
 
 // دالة لعرض الأزرار بشكل موحد
-function renderActionButton($program, $csrf_token, $permission, $condition, $next_status, $btn_class, $btn_text, $btn_icon, $btn_title, $action_name = 'update_status', $disabled = false) {
+function renderActionButton($program, $csrf_token, $permission, $condition, $next_status, $btn_class, $btn_text, $btn_icon, $btn_title, $action_name = 'update_status', $disabled = false, $source = '') {
     if ($condition && !empty($_SESSION['permissions'][$permission])) {
         ?>
         <form method="POST" style="display:inline-block;">
@@ -23,6 +113,9 @@ function renderActionButton($program, $csrf_token, $permission, $condition, $nex
             <input type="hidden" name="program_id" value="<?php echo $program['id']; ?>">
             <?php if ($action_name === 'update_status'): ?>
                 <input type="hidden" name="new_status" value="<?php echo htmlspecialchars($next_status); ?>">
+                <?php if (!empty($source)): ?>
+                    <input type="hidden" name="action_source" value="<?php echo htmlspecialchars($source); ?>">
+                <?php endif; ?>
             <?php endif; ?>
             <button type="submit" name="<?php echo htmlspecialchars($action_name); ?>" class="action-toggle-btn <?php echo htmlspecialchars($btn_class); ?>" title="<?php echo htmlspecialchars($btn_title); ?>" <?php echo $disabled ? 'disabled' : ''; ?>>
                 <i class="fas <?php echo htmlspecialchars($btn_icon); ?>"></i> <?php echo htmlspecialchars($btn_text); ?>
@@ -45,7 +138,7 @@ function renderActionButton($program, $csrf_token, $permission, $condition, $nex
 // معالجة البيانات والتحقق من الصلاحيات (يفترض أنها موجودة وصحيحة)
 // جلب بيانات البرامج والأقسام (يفترض أن $programs و$directions تم تهيئتها)
 $directions = $pdo->query("SELECT DISTINCT Direction FROM programs WHERE Direction IS NOT NULL AND Direction != '' ORDER BY Direction ASC")->fetchAll(PDO::FETCH_COLUMN);
-$sql = "SELECT * FROM programs ORDER BY id DESC";
+$sql = "SELECT programs.*, organizers.name AS organizer_name FROM programs LEFT JOIN organizers ON programs.organizer_id = organizers.id ORDER BY programs.id DESC";
 $programs = [];
 try {
     $stmt = $pdo->prepare($sql);
@@ -56,49 +149,7 @@ try {
 }
 ?>
 
-<!-- تنسيقات CSS -->
-<style>
-    .action-toggle-btn:disabled {
-        background-color: #e9ecef !important;
-        color: #6c757d !important;
-        border-color: #ced4da !important;
-        cursor: not-allowed;
-        opacity: 0.7;
-    }
-    .action-toggle-btn:disabled:hover {
-        background-color: #e9ecef !important;
-    }
-    .filters-container {
-        margin-bottom: 20px;
-    }
-    .filter-form {
-        display: flex;
-        gap: 10px;
-        flex-wrap: wrap;
-    }
-    .filter-group {
-        flex: 1;
-        min-width: 200px;
-    }
-    .filter-group select, .filter-group input {
-        width: 100%;
-        padding: 8px;
-        border-radius: 4px;
-        border: 1px solid #ced4da;
-    }
-    .action-cell {
-        text-align: center;
-        vertical-align: middle;
-    }
-    .action-toggle-btn, .action-btn, .delete-btn {
-        margin: 0 5px;
-        display: inline-block;
-    }
-    .static-status {
-        display: inline-block;
-        padding: 5px 10px;
-    }
-</style>
+
 
 <section class="dashboard-section">
     <!-- رسائل الخطأ والنجاح (يفترض أنها موجودة) -->
@@ -141,10 +192,10 @@ try {
                     <tr>
                         <th>العنوان</th>
                         <th>الجهة</th>
-                        <th style="width: 140px;">المراجعة</th>
-                        <th style="width: 140px;">النشر</th>
-                        <th style="width: 140px;">التسجيل</th>
-                        <th style="width: 100px;">إجراءات</th>
+                        <th style="width: 110px;">المراجعة</th>
+                        <th style="width: 110px;">النشر</th>
+                        <th style="width: 110px;">التسجيل</th>
+                        <th style="width: 80px;">إجراءات</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -158,7 +209,7 @@ try {
                                 data-status="<?php echo htmlspecialchars($program['status']); ?>" 
                                 data-registration="<?php echo $program['status'] === 'published' ? ($program['is_full'] ? 'unavailable' : 'available') : ''; ?>">
                                 <td><?php echo htmlspecialchars($program['title']); ?></td>
-                                <td><?php echo htmlspecialchars($program['organizer']); ?></td>
+                                <td><?php echo htmlspecialchars($program['organizer_name'] ?? $program['organizer']); ?></td>
 
                                 <!-- عمود المراجعة: زر قبول/عدم قبول -->
                                 <td class="action-cell">
@@ -170,7 +221,7 @@ try {
                                         $btn_text = $is_accepted ? 'عدم قبول' : 'قبول';
                                         $btn_icon = $is_accepted ? 'fa-times' : 'fa-check';
                                         $btn_title = $is_accepted ? 'الحالة: مقبول (اضغط للرفض)' : 'الحالة: غير مقبول (اضغط للقبول)';
-                                        renderActionButton($program, $csrf_token, 'can_review_programs', true, $next_status, $btn_class, $btn_text, $btn_icon, $btn_title);
+                                        renderActionButton($program, $csrf_token, 'can_review_programs', true, $next_status, $btn_class, $btn_text, $btn_icon, $btn_title, 'update_status', false, 'review');
                                     } else {
                                         $status_text = $program['status'] === 'reviewed' || $program['status'] === 'published' ? 'مقبول' : ($program['status'] === 'rejected' ? 'مرفوض' : 'غير مقبول');
                                         $status_class = $program['status'] === 'reviewed' || $program['status'] === 'published' ? 'status-accepted' : ($program['status'] === 'rejected' ? 'status-rejected' : 'status-pending');
@@ -188,11 +239,11 @@ try {
                                     if (!empty($_SESSION['permissions']['can_publish_programs']) && $is_publishable) {
                                         $is_published = $program['status'] === 'published';
                                         $next_status = $is_published ? 'reviewed' : 'published';
-                                        $btn_class = $is_published ? 'unpublish' : 'publish';
+                                        $btn_class = $is_published ? 'unpublished' : 'published';
                                         $btn_text = $is_published ? 'عدم نشر' : 'نشر';
                                         $btn_icon = $is_published ? 'fa-eye-slash' : 'fa-globe-americas';
                                         $btn_title = $is_published ? 'الحالة: منشور (اضغط لإلغاء النشر)' : 'الحالة: غير منشور (اضغط للنشر)';
-                                        renderActionButton($program, $csrf_token, 'can_publish_programs', true, $next_status, $btn_class, $btn_text, $btn_icon, $btn_title);
+                                        renderActionButton($program, $csrf_token, 'can_publish_programs', true, $next_status, $btn_class, $btn_text, $btn_icon, $btn_title, 'update_status', false, 'publish');
                                     } else {
                                         $publish_text = $program['status'] === 'published' ? 'منشور' : ($program['status'] === 'reviewed' ? 'جاهز للنشر' : 'غير منشور');
                                         $publish_class = $program['status'] === 'published' ? 'status-published' : ($program['status'] === 'reviewed' ? 'status-reviewed' : 'status-unpublished');
@@ -250,6 +301,7 @@ try {
 <script>
 $(document).ready(function() {
     var table = $('#programs-table').DataTable({
+        "scrollX": true,
         "paging": false,
         "searching": false,
         "ordering": true,
@@ -259,38 +311,87 @@ $(document).ready(function() {
         }
     });
 
+    // البحث بالاسم أو الجهة - يبحث في العمود 0 (العنوان) والعمود 1 (الجهة)
     $('#search').on('keyup', function() {
-        table.column(0).search(this.value).column(1).search(this.value).draw();
+        var searchValue = this.value;
+        table.columns().search(''); // مسح جميع البحث
+        // نستخدم custom search function للبحث في عمودين معاً
+        $.fn.dataTable.ext.search.push(function(settings, data, dataIndex) {
+            var row = table.row(dataIndex).node();
+            var title = $(row).find('td:eq(0)').text().toLowerCase();
+            var organizer = $(row).find('td:eq(1)').text().toLowerCase();
+            var search = searchValue.toLowerCase();
+            return title.includes(search) || organizer.includes(search);
+        });
+        table.draw();
+        $.fn.dataTable.ext.search.pop(); // إزالة البحث المخصص بعد التنفيذ
     });
 
+    // فلتر الحالات
     $('#status-filter').on('change', function() {
         var value = this.value;
-        if (value === 'registration_available') {
-            table.search('').columns().search('').column(4).search('متاح').draw();
+        table.search('').columns().search(''); // مسح جميع الفلاتر أولاً
+
+        if (value === '') {
+            // عرض الكل
+            table.draw();
+        } else if (value === 'registration_available') {
+            // البحث في عمود التسجيل (العمود 4)
+            table.column(4).search('متاح').draw();
         } else if (value === 'registration_unavailable') {
-            table.search('').columns().search('').column(4).search('غير متاح').draw();
+            // البحث في عمود التسجيل (العمود 4)
+            table.column(4).search('غير متاح').draw();
         } else {
-            table.search('').columns().search('').column(2).search(
-                value === 'pending' ? 'غير مقبول' : 
-                value === 'reviewed' ? 'مقبول' : 
-                value === 'published' ? 'منشور' : 
-                value === 'rejected' ? 'مرفوض' : ''
-            ).draw();
+            // البحث في عمود المراجعة (العمود 2)
+            var searchText = '';
+            switch(value) {
+                case 'pending': searchText = 'غير مقبول'; break;
+                case 'reviewed': searchText = 'مقبول'; break;
+                case 'published': searchText = 'منشور'; break;
+                case 'rejected': searchText = 'مرفوض'; break;
+            }
+            if (searchText) {
+                table.column(2).search(searchText).draw();
+            } else {
+                table.draw();
+            }
         }
     });
 
+    // فلتر الأقسام - باستخدام custom filter
     $('#direction-filter').on('change', function() {
         var value = this.value;
-        table.search('').columns().search('').rows().every(function() {
-            var row = this.node();
-            var direction = $(row).data('direction') || '';
-            if (value === '' || direction === value) {
-                $(row).show();
-            } else {
-                $(row).hide();
-            }
-        });
+        if (value === '') {
+            // إزالة جميع الفلاتر المخصصة وإظهار الكل
+            table.search('').columns().search('');
+            // إزالة فلتر الاتجاه المخصص إن وُجد
+            $.fn.dataTable.ext.search = $.fn.dataTable.ext.search.filter(function(fn) {
+                return fn.name !== 'directionFilter';
+            });
+        } else {
+            // إضافة فلتر مخصص للاتجاه
+            // إزالة الفلتر القديم أولاً
+            $.fn.dataTable.ext.search = $.fn.dataTable.ext.search.filter(function(fn) {
+                return fn.name !== 'directionFilter';
+            });
+            $.fn.dataTable.ext.search.push({
+                name: 'directionFilter',
+                fn: function(settings, data, dataIndex) {
+                    var row = table.row(dataIndex).node();
+                    var direction = $(row).data('direction') || '';
+                    return direction === value;
+                }
+            });
+        }
         table.draw();
+    });
+
+    // تأكيد الحذف عند الضغط على زر الحذف في الجدول
+    $('#programs-table').on('click', '.delete-btn', function(e) {
+        if (!confirm('هل أنت متأكد من حذف هذا البرنامج نهائياً؟ هذا الإجراء لا يمكن التراجع عنه.')) {
+            e.preventDefault();
+            return false;
+        }
     });
 });
 </script>

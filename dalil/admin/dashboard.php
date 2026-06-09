@@ -1,11 +1,6 @@
 <?php
 // dashboard.php - لوحة التحكم الرئيسية
 
-// تفعيل عرض الأخطاء للتطوير
-ini_set('display_errors', 1);
-ini_set('display_startup_errors', 1);
-error_reporting(E_ALL);
-
 // Include dependencies
 include_once '../includes/db_connect.php';
 include_once 'AdminController.php';
@@ -16,11 +11,6 @@ $page_title = 'لوحة التحكم الرئيسية';
 $adminController->renderHeader($page_title);
 $adminController->renderMessages();
 
-// تفعيل عرض الأخطاء للتطوير
-ini_set('display_errors', 1);
-ini_set('display_startup_errors', 1);
-error_reporting(E_ALL);
-
 // 4) جلب إحصائيات وبرامج
 $error = '';
 try {
@@ -29,18 +19,18 @@ try {
     $total_users       = $pdo->query("SELECT COUNT(*) FROM users")->fetchColumn();
     $status_counts     = $pdo->query("SELECT status, COUNT(*) AS count FROM programs GROUP BY status")->fetchAll(PDO::FETCH_KEY_PAIR);
     $total_sections    = $pdo->query("SELECT COUNT(DISTINCT Direction) FROM programs WHERE Direction != ''")->fetchColumn();
-    $total_organizers  = $pdo->query("SELECT COUNT(DISTINCT organizer) FROM programs WHERE organizer != ''")->fetchColumn();
+    $total_organizers  = $pdo->query("SELECT COUNT(*) FROM organizers")->fetchColumn();
 
     // إحصائيات الرسوم
     $price_counts = $pdo->query("
         SELECT 
             CASE 
-                WHEN price IS NULL OR TRIM(price) = '' OR price = 0 OR TRIM(LOWER(price)) = 'مجاني' THEN 'مجاني'
+                WHEN is_free = 1 THEN 'مجاني'
                 ELSE 'برسوم' 
             END as price_category, 
             COUNT(*) as count 
         FROM programs 
-        GROUP BY price_category
+        GROUP BY is_free
     ")->fetchAll(PDO::FETCH_KEY_PAIR);
 
     // إحصائيات الأقسام
@@ -60,7 +50,7 @@ try {
 
     // بيانات مخطط الحالات
     $translations = ['pending'=>'بانتظار المراجعة','reviewed'=>'بانتظار النشر','published'=>'منشورة','rejected'=>'مرفوض'];
-    $colors = ['pending'=>'#ffc107','reviewed'=>'#4ecdc4','published'=>'#28a745','rejected'=>'#ff6b6b'];
+    $colors = ['pending'=>'#f59e0b','reviewed'=>'#3b82f6','published'=>'#10b981','rejected'=>'#ef4444'];
     $chart_labels = [];
     $chart_data   = [];
     $chart_colors = [];
@@ -73,7 +63,7 @@ try {
     // بيانات مخطط الرسوم
     $price_chart_labels = ['برامج مجانية', 'برامج برسوم'];
     $price_chart_data   = [$price_counts['مجاني'] ?? 0, $price_counts['برسوم'] ?? 0];
-    $price_chart_colors = ['#4ecdc4', '#ff6b6b'];
+    $price_chart_colors = ['#14b8a6', '#ef4444'];
 
     // بيانات مخطط الأقسام
     $direction_chart_labels = array_keys($direction_counts);
@@ -131,6 +121,11 @@ try {
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
 document.addEventListener('DOMContentLoaded', function() {
+    // إعدادات الخط العامة لمخطط Chart.js
+    Chart.defaults.font.family = 'Tajawal';
+    Chart.defaults.font.size = 12;
+    Chart.defaults.color = '#64748b';
+
     // مخطط حالات البرامج
     const ctx = document.getElementById('statusPieChart');
     if (ctx) {
@@ -145,7 +140,19 @@ document.addEventListener('DOMContentLoaded', function() {
                     borderWidth: 2
                 }]
             },
-            options: { responsive: true, maintainAspectRatio: false }
+            options: { 
+                responsive: true, 
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        position: 'bottom',
+                        labels: {
+                            padding: 15,
+                            font: { weight: '600' }
+                        }
+                    }
+                }
+            }
         });
     }
 
@@ -163,7 +170,19 @@ document.addEventListener('DOMContentLoaded', function() {
                     borderWidth: 2
                 }]
             },
-            options: { responsive: true, maintainAspectRatio: false }
+            options: { 
+                responsive: true, 
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        position: 'bottom',
+                        labels: {
+                            padding: 15,
+                            font: { weight: '600' }
+                        }
+                    }
+                }
+            }
         });
     }
 
@@ -177,17 +196,24 @@ document.addEventListener('DOMContentLoaded', function() {
                 datasets: [{
                     label: 'عدد البرامج',
                     data: <?php echo json_encode($direction_chart_data); ?>,
-                    backgroundColor: 'rgba(138, 43, 226, 0.7)',
-                    borderColor: 'var(--primary)',
+                    backgroundColor: 'rgba(99, 102, 241, 0.85)',
+                    borderColor: '#6366f1',
                     borderWidth: 1,
-                    borderRadius: 5
+                    borderRadius: 6
                 }]
             },
             options: {
                 responsive: true,
                 maintainAspectRatio: false,
                 scales: {
-                    y: { beginAtZero: true, ticks: { stepSize: 1 } }
+                    y: { 
+                        beginAtZero: true, 
+                        ticks: { stepSize: 1 },
+                        grid: { color: 'rgba(229, 231, 235, 0.5)' }
+                    },
+                    x: {
+                        grid: { display: false }
+                    }
                 },
                 plugins: {
                     legend: { display: false }

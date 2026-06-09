@@ -9,99 +9,56 @@ $locations = [];
 $error = null;
 
 try {
-    // Fetch only published programs with a valid Google Map link
-    $stmt = $pdo->query("SELECT * FROM programs WHERE status = 'published' AND google_map IS NOT NULL AND google_map != ''");
+    // Fetch all published programs with their linked organizers
+    $stmt = $pdo->query("SELECT programs.*, COALESCE(organizers.name, programs.organizer) as organizer FROM programs LEFT JOIN organizers ON programs.organizer_id = organizers.id WHERE programs.status = 'published'");
     $programs = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
     foreach ($programs as $program) {
-        $lat = null;
-        $lng = null;
-        $url = trim($program['google_map']);
+        $lat = !empty($program['latitude']) ? (float)$program['latitude'] : null;
+        $lng = !empty($program['longitude']) ? (float)$program['longitude'] : null;
 
-        // Step 1: Check for and extract URL from an iframe embed code, if present.
-        if (str_starts_with($url, '<iframe')) {
-            if (preg_match('/<iframe[^>]+src="([^"]+)"/', $url, $iframe_matches)) {
-                $url = html_entity_decode($iframe_matches[1]);
-            }
-        }
-        
-        // Step 2: If the URL is a shortened goo.gl link, expand it to the full URL.
-        if (strpos($url, 'maps.app.goo.gl') !== false) {
-            if (function_exists('curl_init')) {
-                $ch = curl_init($url);
-                curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-                curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true); // Follow redirects
-                curl_setopt($ch, CURLOPT_NOBODY, true);         // We only need the final URL, not the content
-                curl_setopt($ch, CURLOPT_TIMEOUT, 10);          // Set a timeout
-                curl_setopt($ch, CURLOPT_MAXREDIRS, 10);        // Limit redirects
-                curl_setopt($ch, CURLOPT_USERAGENT, 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36');
-
-                // This is crucial for local servers (like XAMPP) that may lack up-to-date SSL certificates.
-                curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
-                curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, false);
-
-                curl_exec($ch);
-                $curl_err = curl_error($ch);
-                $final_url = curl_getinfo($ch, CURLINFO_EFFECTIVE_URL);
-                curl_close($ch);
-                
-                if ($curl_err) {
-                    // Log error if cURL fails, but don't stop the script.
-                    if (is_null($error)) $error = '';
-                    $error .= "خطأ في جلب الرابط المختصر: " . htmlspecialchars($curl_err) . "<br>";
-                } elseif ($final_url) {
-                    $url = $final_url;
-                }
+        // Fallback coordinates distributed in Riyadh based on region and program ID
+        if ($lat === null || $lng === null) {
+            $seed = intval($program['id']);
+            $offset_lat = sin($seed * 45) * 0.025;
+            $offset_lng = cos($seed * 45) * 0.025;
+            
+            $direction = !empty($program['Direction']) ? trim($program['Direction']) : '';
+            
+            if ($direction === 'شمال الرياض') {
+                $lat = 24.794 + $offset_lat;
+                $lng = 46.678 + $offset_lng;
+            } elseif ($direction === 'جنوب الرياض') {
+                $lat = 24.582 + $offset_lat;
+                $lng = 46.721 + $offset_lng;
+            } elseif ($direction === 'شرق الرياض') {
+                $lat = 24.725 + $offset_lat;
+                $lng = 46.802 + $offset_lng;
+            } elseif ($direction === 'غرب الرياض') {
+                $lat = 24.653 + $offset_lat;
+                $lng = 46.584 + $offset_lng;
             } else {
-                // Inform the user that cURL is necessary for this feature.
-                if (is_null($error)) $error = '';
-                $error = "مكتبة cURL غير مفعلة على الخادم، لا يمكن جلب إحداثيات الروابط المختصرة.";
+                // وسط الرياض (العليا/السليمانية)
+                $lat = 24.713 + $offset_lat;
+                $lng = 46.675 + $offset_lng;
             }
         }
 
-        // Step 3: Try multiple patterns to extract coordinates from the final URL.
-
-        // Pattern 1: Standard URL with @lat,lng (e.g., from browser address bar)
-        if (preg_match('/@(-?\d+\.\d+),(-?\d+\.\d+)/', $url, $matches)) {
-            $lat = $matches[1];
-            $lng = $matches[2];
-        } 
-        // Pattern 2: URL from "Embed" map with data=!3d(lat)!4d(lng)
-        elseif (preg_match('/data=.*!3d(-?\d+\.\d+)!4d(-?\d+\.\d+)/', $url, $matches)) {
-            $lat = $matches[1];
-            $lng = $matches[2];
-        }
-        // Pattern 3: URL with ll=lat,lng
-        elseif (preg_match('/ll=(-?\d+\.\d+),(-?\d+\.\d+)/', $url, $matches)) {
-            $lat = $matches[1];
-            $lng = $matches[2];
-        }
-        // Pattern 4: URL with q=lat,lng (e.g., from "Share" link)
-        elseif (preg_match('/q=(-?\d+\.\d+),(-?\d+\.\d+)/', $url, $matches)) {
-            $lat = $matches[1];
-            $lng = $matches[2];
-        }
-        // Pattern 5: URL from embed with `pb` parameter
-        elseif (preg_match('!1d(-?\d+\.\d+)!2d(-?\d+\.\d+)!', $url, $matches)) {
-            $lat = $matches[1];
-            $lng = $matches[2];
-        }
-
-        if ($lat !== null && $lng !== null) {
-            $locations[] = [
-                'title' => $program['title'],
-                'organizer' => $program['organizer'],
-                'location' => $program['location'],
-                'duration' => $program['duration'],
-                'start_date' => $program['start_date'],
-                'age_group' => $program['age_group'],
-                'description' => $program['description'],
-                'price' => $program['price'],
-                'registration_link' => $program['registration_link'],
-                'lat' => (float)$lat,
-                'lng' => (float)$lng,
-            ];
-        }
+        $locations[] = [
+            'title' => $program['title'],
+            'organizer' => $program['organizer'],
+            'location' => $program['location'],
+            'duration' => $program['duration'],
+            'start_date' => $program['start_date'],
+            'age_group' => $program['age_group'],
+            'attendance_type' => $program['attendance_type'] ?? 'حضوري',
+            'is_free' => $program['is_free'] ?? null,
+            'description' => $program['description'] ?? '',
+            'price' => $program['price'],
+            'registration_link' => $program['registration_link'],
+            'lat' => (float)$lat,
+            'lng' => (float)$lng,
+        ];
     }
 } catch (PDOException $e) {
     $error = "خطأ في قاعدة البيانات: " . $e->getMessage();
@@ -320,8 +277,9 @@ $locations_json = json_encode($locations, JSON_UNESCAPED_UNICODE);
     <script>
     // Helper function to create the HTML for the program card popup
     function createPopupHtml(loc) {
-        const isFree = (loc.price == 0 || ['مجاناً', 'مجاني'].includes(String(loc.price).trim().toLowerCase()));
-        const priceHtml = `<div class="program-fee ${isFree ? 'free-badge' : ''}">${isFree ? 'مجاناً' : loc.price}</div>`;
+        const isFree = (loc.is_free == 1) || (loc.price == 0 || ['مجاناً', 'مجاني'].includes(String(loc.price).trim().toLowerCase()));
+        const priceText = isFree ? 'مجاناً' : loc.price;
+        const priceHtml = `<div class="program-fee ${isFree ? 'free-badge' : ''}">${priceText}</div>`;
 
         // Shorten description for the popup
         const words = loc.description.split(' ');
@@ -353,6 +311,10 @@ $locations_json = json_encode($locations, JSON_UNESCAPED_UNICODE);
                         <div class="detail-item">
                             <i class="fas fa-user-friends detail-icon"></i>
                             <div class="detail-text">${loc.age_group}</div>
+                        </div>
+                        <div class="detail-item">
+                            <i class="fas fa-chalkboard-teacher detail-icon"></i>
+                            <div class="detail-text">${loc.attendance_type}</div>
                         </div>
                     </div>
                     <p class="program-description">${shortDesc}</p>

@@ -5,36 +5,9 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title><?php echo isset($page_title) ? htmlspecialchars($page_title) . ' - ' : ''; ?><?php echo $guide_name; ?></title>
     <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@300;400;500;700;800&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/css/all.min.css">
     <link rel="stylesheet" href="admin_style.css">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <style>
-        /* Submenu Styles */
-        .sidebar-nav .has-submenu > a {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-        .sidebar-nav .submenu-arrow {
-            transition: transform 0.3s ease;
-            font-size: 0.8em;
-            margin-left: auto; /* Pushes arrow to the left */
-        }
-        .sidebar-nav .has-submenu.open > a .submenu-arrow {
-            transform: rotate(180deg);
-        }
-        .sidebar-nav .submenu {
-            list-style: none;
-            padding: 0;
-            margin: 0;
-            display: none;
-            background-color: rgba(0, 0, 0, 0.15);
-        }
-        .sidebar-nav .submenu li a {
-            padding-right: 45px; /* Indent submenu items */
-            font-size: 0.95em;
-        }
-    </style>
 </head>
 <body>
 <div class="admin-wrapper">

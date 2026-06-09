@@ -1,0 +1,21 @@
+# WordPress/PHP common ignores
+composer.lock
+vendor/
+
+# Temporary and Scratch Files
+dalil/scratch/
+
+# Deployment packages
+dalil_deployment/
+dalil_deployment.zip
+
+# Database dumps / backups
+*.sql
+dalil/*.sql
+dalil/99.htaccess.bak
+
+# IDEs / OS files
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db

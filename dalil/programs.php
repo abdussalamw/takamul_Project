@@ -1,11 +1,10 @@
 <section class="programs-section">
     <div class="programs-header">
         <span class="results-count">عرض <span id="displayed-count-live"><?php echo count($programs); ?></span> برنامج من أصل <span id="total-count-live"><?php echo $total_programs; ?></span></span>
-                <div class="view-controls">
+        <div class="view-controls">
             <button id="show-cards-view-btn" class="view-toggle-btn active">عرض كبطاقات <i class="fas fa-th-large"></i></button>
             <button id="show-table-view-btn" class="view-toggle-btn">عرض كجدول <i class="fas fa-list"></i></button>
-        </div>
-
+            <button id="show-map-view-btn" class="view-toggle-btn">عرض الخريطة التفاعلية <i class="fas fa-map-marked-alt"></i></button>
         </div>
     </div>
 
@@ -39,8 +38,14 @@
                             </div>
                             <div class="detail-item">
                                 <i class="fas fa-user-friends detail-icon"></i>
-                                <div class="detail-text"><?php echo htmlspecialchars($program['age_group']); ?></div>
+                                <div class="detail-text" title="<?php echo htmlspecialchars($program['target_notes'] ?? ''); ?>"><?php echo htmlspecialchars($program['age_group']); ?></div>
                             </div>
+                            <?php if(!empty($program['attendance_type'])): ?>
+                            <div class="detail-item">
+                                <i class="fas fa-chalkboard-teacher detail-icon"></i>
+                                <div class="detail-text"><?php echo htmlspecialchars($program['attendance_type']); ?></div>
+                            </div>
+                            <?php endif; ?>
                         </div>
                         <?php 
                             $description = htmlspecialchars($program['description']);
@@ -60,11 +65,11 @@
                     </div>
                     <div class="card-footer">
                         <?php
-                            $free_texts = ['مجاناً', 'مجاني'];
-                            $is_free = ($program['price'] == 0 || in_array(strtolower(trim($program['price'])), $free_texts, true));
+                            $is_free = (isset($program['is_free']) && $program['is_free'] == 1) || ($program['price'] == '0' || in_array(strtolower(trim($program['price'])), ['مجاناً', 'مجاني'], true));
+                            $price_text = $is_free ? 'مجاني' : htmlspecialchars($program['price']);
                         ?>
-                        <div class="program-fee <?php echo $is_free ? 'free-badge' : ''; ?>">
-                            <?php echo $is_free ? 'مجاناً' : htmlspecialchars($program['price']); ?>
+                        <div class="program-fee <?php echo $is_free ? 'free-badge' : ''; ?>" title="<?php echo htmlspecialchars($program['price_notes'] ?? ''); ?>">
+                            <?php echo $price_text; ?>
                         </div>
                         <a href="<?php echo !empty($program['registration_link']) ? htmlspecialchars($program['registration_link']) : '#'; ?>" 
                            class="register-btn" 
@@ -92,12 +97,12 @@
                         <table class="programs-table-public">
                             <thead>
                                 <tr>
-                                    <th>عنوان البرنامج</th>
-                                    <th>اسم الجهة المنظمة</th>
+                                    <th>العنوان</th>
+                                    <th>الجهة</th>
                                     <th>تاريخ البدء</th>
-                                    <th>مكان البرنامج</th>
-                                    <th>الفئة العمرية</th>
-                                    <th>رسوم البرنامج</th>
+                                    <th>المقر</th>
+                                    <th>الحضور</th>
+                                    <th>الرسوم</th>
                                     <th>رابط التسجيل</th>
                                 </tr>
                             </thead>
@@ -108,11 +113,11 @@
                                         <td><?php echo htmlspecialchars($program['organizer']); ?></td>
                                         <td><?php echo htmlspecialchars($program['start_date']); ?></td>
                                         <td><?php echo htmlspecialchars($program['location']); ?></td>
-                                        <td><?php echo htmlspecialchars($program['age_group']); ?></td>
-                                        <td>
+                                        <td><?php echo htmlspecialchars($program['attendance_type'] ?? 'حضوري'); ?></td>
+                                        <td title="<?php echo htmlspecialchars($program['price_notes'] ?? ''); ?>">
                                             <?php
-                                                $free_texts_check = ['مجاناً', 'مجاني'];
-                                                echo ($program['price'] == 0 || in_array(strtolower(trim($program['price'])), $free_texts_check, true)) ? 'مجاناً' : htmlspecialchars($program['price']);
+                                                $is_free_table = (isset($program['is_free']) && $program['is_free'] == 1) || ($program['price'] == '0' || in_array(strtolower(trim($program['price'])), ['مجاناً', 'مجاني'], true));
+                                                echo $is_free_table ? 'مجاني' : htmlspecialchars($program['price']);
                                             ?>
                                         </td>
                                         <td>
@@ -131,4 +136,64 @@
             <?php endforeach; ?>
         <?php endif; ?>
     </div>
+
+    <div id="programs-map-view" class="view-container" style="display: none;">
+        <div id="map" style="height: 600px; width: 100%; border-radius: 15px; border: 2px solid #e0e0e0; z-index: 1; margin-top: 20px; box-shadow: 0 4px 10px rgba(0,0,0,0.05);"></div>
+    </div>
+
+    <?php
+    // إعداد بيانات الخريطة مع إحداثيات قطعية افتراضية إذا لم يتوفر رابط جوجل ماب
+    $map_programs = [];
+    foreach ($programs as $program) {
+        $lat = !empty($program['latitude']) ? (float)$program['latitude'] : null;
+        $lng = !empty($program['longitude']) ? (float)$program['longitude'] : null;
+        
+        // إذا لم تتوفر إحداثيات، نقوم بتوليد إحداثيات قطعية موزعة في الرياض بناءً على المنطقة والمعرف
+        if (empty($lat) || empty($lng)) {
+            $seed = intval($program['id']);
+            // استخدام جيب وجيب التمام (sin/cos) للمعرّف لتوليد إزاحة فريدة تمنع تطابق العلامات فوق بعضها
+            $offset_lat = sin($seed * 45) * 0.025;
+            $offset_lng = cos($seed * 45) * 0.025;
+            
+            $direction = !empty($program['Direction']) ? trim($program['Direction']) : '';
+            
+            if ($direction === 'شمال الرياض') {
+                $lat = 24.794 + $offset_lat;
+                $lng = 46.678 + $offset_lng;
+            } elseif ($direction === 'جنوب الرياض') {
+                $lat = 24.582 + $offset_lat;
+                $lng = 46.721 + $offset_lng;
+            } elseif ($direction === 'شرق الرياض') {
+                $lat = 24.725 + $offset_lat;
+                $lng = 46.802 + $offset_lng;
+            } elseif ($direction === 'غرب الرياض') {
+                $lat = 24.653 + $offset_lat;
+                $lng = 46.584 + $offset_lng;
+            } else {
+                // وسط الرياض (العليا/السليمانية)
+                $lat = 24.713 + $offset_lat;
+                $lng = 46.675 + $offset_lng;
+            }
+        }
+        
+        $map_programs[] = [
+            'id' => $program['id'],
+            'title' => $program['title'],
+            'organizer' => $program['organizer'],
+            'location' => $program['location'],
+            'Direction' => $program['Direction'] ?? '',
+            'duration' => $program['duration'],
+            'start_date' => $program['start_date'],
+            'age_group' => $program['age_group'],
+            'price' => $program['price'],
+            'registration_link' => $program['registration_link'],
+            'lat' => $lat,
+            'lng' => $lng,
+            'description' => $program['description'] ?? ''
+        ];
+    }
+    ?>
+    <script id="map-programs-data" type="application/json">
+        <?php echo json_encode($map_programs, JSON_UNESCAPED_UNICODE); ?>
+    </script>
 </section>

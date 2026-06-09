@@ -1,0 +1,6 @@
+# Prevent script execution in uploads directory
+RemoveHandler .php .phtml .php3 .php4 .php5 .php7 .phps .pl .py .pyc .pyo .jsp .asp .aspx .sh .cgi
+<FilesMatch "\.(php|php5|php7|phtml|pl|py|jsp|asp|sh|cgi)$">
+    ForceType text/plain
+    Deny from all
+</FilesMatch>
