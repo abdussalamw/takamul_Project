@@ -83,17 +83,20 @@ if (isset($_GET['ajax']) && $_GET['ajax'] == '1') {
 <section class="hero">
     <h1>اكتشف أفضل البرامج الصيفية للفتيات في الرياض</h1>
     <p>استثمر صيفك في تطوير مهاراتك واكتساب خبرات جديدة مع مجموعة متنوعة من البرامج المتميزة في مختلف المجالات</p>
-    <form class="search-box" method="GET">
-        <input type="text" name="search" placeholder="ابحث عن برنامج..." value="<?php echo isset($_GET['search']) ? htmlspecialchars($_GET['search']) : ''; ?>">
-        <button type="submit">بحث</button>
-    </form>
 </section>
 
 
 <section class="filters-section">
     <h2 class="section-title">تصفية البرامج</h2>
     <form method="GET" class="filters-grid" id="filter-form">
-                <div class="filter-group">
+        <div class="filter-group search-filter-group">
+            <h3><i class="fas fa-search"></i> بحث عن برنامج</h3>
+            <div class="search-box">
+                <input type="text" name="search" placeholder="اكتب اسم البرنامج..." value="<?php echo isset($_GET['search']) ? htmlspecialchars($_GET['search']) : ''; ?>">
+                <button type="submit"><i class="fas fa-search"></i></button>
+            </div>
+        </div>
+        <div class="filter-group">
             <h3><i class="fas fa-sort-amount-down"></i> الترتيب حسب</h3>
             <select name="sort">
                 <option value="الأقل سعراً" <?php echo $sort === 'الأقل سعراً' ? 'selected' : ''; ?>>الأقل سعراً</option>
@@ -134,9 +137,6 @@ if (isset($_GET['ajax']) && $_GET['ajax'] == '1') {
                 <?php endforeach; ?>
             </select>
         </div>
-        <?php if (isset($_GET['search'])): ?>
-            <input type="hidden" name="search" value="<?php echo htmlspecialchars($_GET['search']); ?>">
-        <?php endif; ?>
     </form>
 </section>
 
@@ -350,36 +350,20 @@ include 'programs.php';
 
         // تطبيق الفلاتر تلقائياً عند تغيير أي قائمة اختيار
         $(document).on('change', '#filter-form select', applyFilters);
-        // منع الإرسال التقليدي للنموذج عند الضغط على زر "تطبيق الفلترة"
+        // منع الإرسال التقليدي للنموذج عند الضغط على زر "تطبيق الفلترة" أو زر البحث
         $(document).on('submit', '#filter-form', function(e) {
             e.preventDefault();
+            clearTimeout(searchTimeout);
             applyFilters();
         });
 
         // البحث الفوري أثناء الكتابة (مع مؤقت لتجنب تكرار الطلبات)
         var searchTimeout = null;
-        $(document).on('input', '.search-box input[name="search"]', function() {
-            var searchVal = $(this).val();
-            
-            // تحديث الحقل المخفي في نموذج الفلترة
-            var hiddenSearch = $('#filter-form input[name="search"]');
-            if (hiddenSearch.length === 0) {
-                $('#filter-form').append('<input type="hidden" name="search" value="">');
-                hiddenSearch = $('#filter-form input[name="search"]');
-            }
-            hiddenSearch.val(searchVal);
-            
+        $(document).on('input', '#filter-form input[name="search"]', function() {
             clearTimeout(searchTimeout);
             searchTimeout = setTimeout(function() {
                 applyFilters();
             }, 300); // إرسال الطلب بعد 300 ملي ثانية من التوقف عن الكتابة
-        });
-
-        // منع إرسال نموذج البحث بشكل تقليدي عند الضغط على Enter أو زر البحث
-        $(document).on('submit', '.search-box', function(e) {
-            e.preventDefault();
-            clearTimeout(searchTimeout);
-            applyFilters();
         });
     });
 </script>
