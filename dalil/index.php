@@ -187,14 +187,17 @@ include 'programs.php';
                     var latLng = [loc.lat, loc.lng];
                     bounds.push(latLng);
 
-                    // رسم دائرة تفاعلية كعلامة على الخريطة
-                    var marker = L.circleMarker(latLng, {
-                        radius: 12,
-                        fillColor: "#8a2be2", // اللون الأساسي للموقع
-                        color: "#fff",
-                        weight: 2,
-                        opacity: 1,
-                        fillOpacity: 0.8
+                    // إنشاء أيقونة نبض مخصصة باستخدام HTML و CSS (أكبر وتنبض)
+                    var pulsatingIcon = L.divIcon({
+                        className: 'pulsating-icon-container',
+                        html: '<div class="pulse-ring"></div><div class="pulse-dot"></div>',
+                        iconSize: [40, 40],
+                        iconAnchor: [20, 20]
+                    });
+
+                    // رسم علامة تفاعلية بالنبض على الخريطة
+                    var marker = L.marker(latLng, {
+                        icon: pulsatingIcon
                     }).addTo(mapInstance);
 
                     // إعداد بطاقة منبثقة بتصميم أنيق يتوافق مع البطاقات الأساسية للموقع

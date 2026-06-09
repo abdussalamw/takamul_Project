@@ -787,6 +787,58 @@ if (session_status() === PHP_SESSION_NONE) {
                 font-size: 0.95rem;
             }
         }
+
+        /* Pulsating Map Markers */
+        .pulsating-icon-container {
+            position: relative;
+            width: 40px;
+            height: 40px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .pulse-dot {
+            width: 14px;
+            height: 14px;
+            background-color: var(--primary); /* اللون البنفسجي */
+            border: 2px solid white;
+            border-radius: 50%;
+            box-shadow: 0 0 6px rgba(138, 43, 226, 0.6);
+            z-index: 2;
+            transition: all 0.3s ease;
+        }
+
+        .pulsating-icon-container:hover .pulse-dot {
+            background-color: var(--secondary); /* اللون المرجاني عند التحويم */
+            transform: scale(1.2);
+        }
+
+        .pulse-ring {
+            position: absolute;
+            width: 40px;
+            height: 40px;
+            border: 3px solid var(--primary);
+            border-radius: 50%;
+            background-color: rgba(138, 43, 226, 0.15);
+            animation: pulse-animation 1.6s infinite ease-out;
+            z-index: 1;
+            opacity: 0;
+        }
+
+        @keyframes pulse-animation {
+            0% {
+                transform: scale(0.2);
+                opacity: 0.8;
+            }
+            50% {
+                opacity: 0.4;
+            }
+            100% {
+                transform: scale(1.3);
+                opacity: 0;
+            }
+        }
     </style>
 </head>
 <body>
