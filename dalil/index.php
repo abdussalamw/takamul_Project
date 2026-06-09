@@ -139,7 +139,7 @@ include 'programs.php';
 <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
 <script>
     $(document).ready(function() {
-        var activeView = 'cards'; // 'cards', 'table', or 'map'
+        var activeView = localStorage.getItem('preferredView') || 'cards'; // 'cards', 'table', or 'map'
         var mapInstance = null;
 
         // دالة لتهيئة وتحديث الخريطة التفاعلية
@@ -280,16 +280,19 @@ include 'programs.php';
         // --- استخدام تفويض الأحداث للتبديل بين العروض الثلاثة ---
         $(document).on('click', '#show-cards-view-btn', function() {
             activeView = 'cards';
+            localStorage.setItem('preferredView', activeView);
             applyView();
         });
 
         $(document).on('click', '#show-table-view-btn', function() {
             activeView = 'table';
+            localStorage.setItem('preferredView', activeView);
             applyView();
         });
 
         $(document).on('click', '#show-map-view-btn', function() {
             activeView = 'map';
+            localStorage.setItem('preferredView', activeView);
             applyView();
         });
 

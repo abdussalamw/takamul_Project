@@ -845,6 +845,77 @@ if (session_status() === PHP_SESSION_NONE) {
                 opacity: 0;
             }
         }
+
+        /* Public Programs Table Styles */
+        .direction-group {
+            margin-bottom: 2.5rem;
+        }
+        .direction-heading {
+            text-align: right;
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: var(--dark);
+            margin-bottom: 1rem;
+            padding-bottom: 0.75rem;
+            border-bottom: 3px solid var(--primary);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .table-responsive-wrapper {
+            overflow-x: auto;
+            border: 1px solid rgba(138, 43, 226, 0.15);
+            border-radius: 12px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.04);
+            margin-bottom: 1.5rem;
+            background: white;
+        }
+        .programs-table-public {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.95rem;
+            min-width: 800px;
+        }
+        .programs-table-public th, .programs-table-public td {
+            padding: 14px 16px;
+            text-align: right;
+            border-bottom: 1px solid #eee;
+            vertical-align: middle;
+        }
+        .programs-table-public th {
+            background-color: rgba(138, 43, 226, 0.04);
+            color: #5c1d9c;
+            font-weight: 700;
+            white-space: nowrap;
+        }
+        .programs-table-public td {
+            white-space: normal;
+            word-wrap: break-word;
+            overflow-wrap: break-word;
+        }
+        .programs-table-public tr:nth-child(even) {
+            background-color: #fbfbfd;
+        }
+        .programs-table-public tr:hover {
+            background-color: rgba(138, 43, 226, 0.02);
+        }
+        .register-btn-table {
+            color: #fff;
+            background: linear-gradient(135deg, var(--secondary) 0%, #e55a5a 100%);
+            padding: 7px 14px;
+            border-radius: 20px;
+            text-decoration: none;
+            display: inline-block;
+            white-space: nowrap;
+            font-size: 0.85rem;
+            font-weight: 600;
+            box-shadow: 0 2px 5px rgba(255, 107, 107, 0.2);
+            transition: all 0.3s ease;
+        }
+        .register-btn-table:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 10px rgba(255, 107, 107, 0.35);
+        }
     </style>
 </head>
 <body>
