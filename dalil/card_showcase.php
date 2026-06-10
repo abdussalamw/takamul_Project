@@ -1,0 +1,1117 @@
+<?php
+require 'includes/db_connect.php';
+
+// محاولة جلب برنامج حقيقي من قاعدة البيانات لعرضه في المعاينة (نفضل المعرف 1 أو أول برنامج منشور)
+try {
+    $stmt = $pdo->prepare("SELECT programs.*, COALESCE(organizers.name, programs.organizer) as organizer FROM programs LEFT JOIN organizers ON programs.organizer_id = organizers.id WHERE programs.status = 'published' ORDER BY programs.id ASC LIMIT 1");
+    $stmt->execute();
+    $program = $stmt->fetch(PDO::FETCH_ASSOC);
+} catch (PDOException $e) {
+    $program = false;
+}
+
+// بيانات بديلة (Fallback) في حال كانت قاعدة البيانات فارغة أو حدث خطأ
+if (!$program) {
+    $program = [
+        'id' => 1,
+        'title' => 'فُلك فَلك',
+        'organizer' => 'مؤسسة عبير المسك',
+        'description' => 'فُلك فَلك رحلة تبدأ من البحر 🌊 وتنتهي بالنجوم 🪐 💫 برنامج قيمي تربوي ترفيهي حضوري للأطفال وللفتيات',
+        'program_type' => 'برنامج(قيمي - تربوي)',
+        'Direction' => 'شرق الرياض',
+        'location' => 'حي الجزيرة',
+        'venue_name' => 'دار مسك',
+        'attendance_type' => 'حضوري',
+        'start_date' => '2026/07/05',
+        'end_date' => '2026/07/22',
+        'duration' => 'ثلاثة اسابيع',
+        'is_free' => 0,
+        'age_group' => 'متوسط, ثانوي',
+        'price' => '480.00',
+        'price_notes' => 'خصم للمجموعات الشخص 450',
+        'registration_link' => 'https://salla.sa/Folk-falak'
+    ];
+}
+
+include 'includes/header.php';
+?>
+
+<!-- تنسيقات صفحة العرض المخصصة والمعزولة تماماً لمنع التداخل مع بقية الصفحات -->
+<style>
+    .showcase-container {
+        max-width: 1200px;
+        margin: 40px auto;
+        padding: 0 20px;
+        direction: rtl;
+    }
+
+    .showcase-intro {
+        background: white;
+        border-radius: 20px;
+        padding: 30px;
+        margin-bottom: 45px;
+        box-shadow: 0 10px 30px rgba(138, 43, 226, 0.05);
+        border-right: 6px solid var(--primary);
+        position: relative;
+        overflow: hidden;
+    }
+
+    .showcase-intro::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 150px;
+        height: 150px;
+        background: radial-gradient(circle, rgba(138, 43, 226, 0.05) 0%, transparent 70%);
+        border-radius: 50%;
+    }
+
+    .showcase-intro h2 {
+        color: var(--primary);
+        margin-bottom: 12px;
+        font-size: 2rem;
+        font-weight: 800;
+    }
+
+    .showcase-intro p {
+        color: #555;
+        font-size: 1.1rem;
+        line-height: 1.8;
+    }
+
+    .showcase-controls {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 35px;
+        background: #fff;
+        padding: 20px 25px;
+        border-radius: 16px;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.02);
+        flex-wrap: wrap;
+        gap: 15px;
+    }
+
+    .controls-title {
+        font-size: 1.05rem;
+        font-weight: 700;
+        color: #333;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .controls-title i {
+        color: var(--primary);
+    }
+
+    .bg-switcher {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        flex-wrap: wrap;
+    }
+
+    .bg-btn {
+        border: 2px solid #e2e8f0;
+        background: #ffffff;
+        padding: 8px 18px;
+        border-radius: 50px;
+        cursor: pointer;
+        font-weight: 600;
+        font-family: 'Tajawal', sans-serif;
+        font-size: 0.9rem;
+        transition: all 0.3s cubic-bezier(0.165, 0.84, 0.44, 1);
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        color: #4a5568;
+    }
+
+    .bg-btn:hover {
+        background: #f7fafc;
+        border-color: #cbd5e0;
+    }
+
+    .bg-btn.active {
+        background: var(--primary);
+        color: white;
+        border-color: var(--primary);
+        box-shadow: 0 4px 10px rgba(138, 43, 226, 0.25);
+    }
+
+    /* شبكة العرض والتحكم */
+    .showcase-grid {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 40px;
+        padding: 30px;
+        border-radius: 24px;
+        transition: all 0.4s cubic-bezier(0.165, 0.84, 0.44, 1);
+        background: transparent;
+    }
+
+    @media (max-width: 992px) {
+        .showcase-grid {
+            grid-template-columns: 1fr;
+            gap: 35px;
+            padding: 15px;
+        }
+    }
+
+    .showcase-card-wrapper {
+        display: flex;
+        flex-direction: column;
+        gap: 16px;
+    }
+
+    .showcase-label {
+        font-size: 1.15rem;
+        font-weight: 800;
+        color: #2d3748;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 0 5px;
+        transition: color 0.3s;
+    }
+
+    .showcase-label-title {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .showcase-label-title i {
+        color: var(--primary);
+    }
+
+    .showcase-label-badge {
+        background: #efe9ff;
+        color: var(--primary);
+        padding: 4px 12px;
+        border-radius: 50px;
+        font-size: 0.8rem;
+        font-weight: 700;
+        transition: all 0.3s;
+    }
+
+    /* وضعيات الخلفيات لشبكة المعاينة */
+    .bg-default {
+        background: transparent;
+    }
+
+    .bg-white {
+        background: #ffffff !important;
+        box-shadow: 0 10px 40px rgba(0,0,0,0.03) inset, 0 1px 3px rgba(0,0,0,0.05);
+        border: 1px solid #e2e8f0;
+    }
+
+    .bg-dark {
+        background: #11141a !important;
+        box-shadow: 0 10px 40px rgba(0,0,0,0.4) inset;
+        border: 1px solid #1a1e26;
+    }
+
+    .bg-gradient-color {
+        background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%) !important;
+        box-shadow: 0 10px 40px rgba(0,0,0,0.2) inset;
+    }
+
+    /* تعديل نصوص الشارات والبطاقات عند تفعيل الخلفيات الداكنة */
+    .dark-preview-labels .showcase-label {
+        color: #ffffff;
+    }
+    .dark-preview-labels .showcase-label-badge {
+        background: rgba(255, 255, 255, 0.18);
+        color: #ffffff;
+    }
+    .dark-preview-labels .showcase-label-title i {
+        color: #c5a880;
+    }
+
+    /* ==========================================================================
+       نموذج 1: التصميم الزجاجي العصري (Modern Glassmorphism)
+       ========================================================================== */
+    .card-glass {
+        background: rgba(255, 255, 255, 0.45);
+        backdrop-filter: blur(12px) saturate(180%);
+        -webkit-backdrop-filter: blur(12px) saturate(180%);
+        border: 1px solid rgba(255, 255, 255, 0.55);
+        border-radius: 20px;
+        padding: 24px;
+        box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.04);
+        display: flex;
+        flex-direction: column;
+        height: 100%;
+        transition: all 0.4s cubic-bezier(0.165, 0.84, 0.44, 1);
+        position: relative;
+        overflow: hidden;
+    }
+
+    .card-glass::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 6px;
+        background: linear-gradient(90deg, #8a2be2, #ff6b6b);
+        opacity: 0.8;
+    }
+
+    .card-glass:hover {
+        transform: translateY(-8px);
+        box-shadow: 0 16px 48px 0 rgba(31, 38, 135, 0.12);
+        border-color: rgba(255, 255, 255, 0.75);
+        background: rgba(255, 255, 255, 0.55);
+    }
+
+    .card-glass-header {
+        margin-bottom: 18px;
+    }
+
+    .card-glass-organizer {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        font-size: 0.85rem;
+        color: #6a1b9a;
+        background: rgba(138, 43, 226, 0.08);
+        padding: 4px 12px;
+        border-radius: 50px;
+        font-weight: 600;
+        margin-bottom: 10px;
+    }
+
+    .card-glass-organizer i {
+        font-size: 0.8rem;
+    }
+
+    .card-glass-title {
+        font-size: 1.35rem;
+        font-weight: 800;
+        color: #1a1d24;
+        line-height: 1.45;
+    }
+
+    .card-glass-body {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+    }
+
+    .card-glass-details {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 10px;
+        margin-bottom: 18px;
+    }
+
+    .glass-detail-item {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        background: rgba(255, 255, 255, 0.6);
+        padding: 8px 12px;
+        border-radius: 12px;
+        border: 1px solid rgba(255, 255, 255, 0.5);
+        transition: all 0.3s ease;
+    }
+
+    .glass-detail-item i {
+        color: #8a2be2;
+        font-size: 0.95rem;
+        width: 14px;
+        text-align: center;
+    }
+
+    .glass-detail-text {
+        font-size: 0.85rem;
+        color: #4a5568;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        font-weight: 600;
+    }
+
+    .card-glass-description {
+        font-size: 0.9rem;
+        color: #4a5568;
+        line-height: 1.7;
+        margin-bottom: 20px;
+        flex: 1;
+    }
+
+    .card-glass-footer {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-top: auto;
+        border-top: 1px solid rgba(0, 0, 0, 0.05);
+        padding-top: 16px;
+    }
+
+    .glass-price-box {
+        display: flex;
+        flex-direction: column;
+    }
+
+    .glass-price-label {
+        font-size: 0.75rem;
+        color: #718096;
+        margin-bottom: 2px;
+    }
+
+    .glass-price-value {
+        font-size: 1.3rem;
+        font-weight: 800;
+        color: #8a2be2;
+    }
+
+    .glass-price-value.free {
+        color: #28a745;
+    }
+
+    .glass-btn {
+        background: linear-gradient(135deg, #8a2be2, #6a1b9a);
+        color: white !important;
+        padding: 10px 22px;
+        border-radius: 14px;
+        font-weight: 600;
+        text-decoration: none;
+        font-size: 0.9rem;
+        box-shadow: 0 4px 15px rgba(138, 43, 226, 0.2);
+        transition: all 0.3s ease;
+        border: none;
+        text-align: center;
+    }
+
+    .glass-btn:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 20px rgba(138, 43, 226, 0.3);
+        background: linear-gradient(135deg, #9b41f7, #7b27b3);
+    }
+
+    /* تعديلات التصميم الزجاجي في الوضع الداكن */
+    .dark-preview .card-glass {
+        background: rgba(255, 255, 255, 0.1);
+        border-color: rgba(255, 255, 255, 0.15);
+        box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.3);
+    }
+    .dark-preview .card-glass-title {
+        color: #ffffff;
+    }
+    .dark-preview .card-glass-organizer {
+        color: #e9d8fd;
+        background: rgba(255, 255, 255, 0.1);
+    }
+    .dark-preview .card-glass-description {
+        color: #cbd5e0;
+    }
+    .dark-preview .glass-detail-item {
+        background: rgba(255, 255, 255, 0.08);
+        border-color: rgba(255, 255, 255, 0.05);
+    }
+    .dark-preview .glass-detail-text {
+        color: #e2e8f0;
+    }
+    .dark-preview .glass-detail-item i {
+        color: #a78bfa;
+    }
+    .dark-preview .glass-price-label {
+        color: #a0aec0;
+    }
+    .dark-preview .glass-price-value {
+        color: #c084fc;
+    }
+    .dark-preview .card-glass-footer {
+        border-top-color: rgba(255, 255, 255, 0.08);
+    }
+
+    /* ==========================================================================
+       نموذج 2: التصميم التفاعلي الجريء (Bold & Playful Neo-brutalism)
+       ========================================================================== */
+    .card-brutal {
+        background: #ffffff;
+        border: 3px solid #000000;
+        border-radius: 0px;
+        padding: 24px;
+        box-shadow: 8px 8px 0px #000000;
+        display: flex;
+        flex-direction: column;
+        height: 100%;
+        transition: all 0.2s cubic-bezier(0.19, 1, 0.22, 1);
+        position: relative;
+    }
+
+    .card-brutal:hover {
+        transform: translate(-4px, -4px);
+        box-shadow: 12px 12px 0px #000000;
+    }
+
+    .card-brutal:active {
+        transform: translate(2px, 2px);
+        box-shadow: 4px 4px 0px #000000;
+    }
+
+    .card-brutal-header {
+        border-bottom: 3px solid #000000;
+        padding-bottom: 14px;
+        margin-bottom: 18px;
+    }
+
+    .card-brutal-organizer {
+        font-size: 0.85rem;
+        font-weight: 800;
+        color: #000000;
+        background: #f1c40f;
+        border: 2px solid #000000;
+        padding: 4px 12px;
+        display: inline-block;
+        margin-bottom: 10px;
+        box-shadow: 2px 2px 0px #000000;
+    }
+
+    .card-brutal-title {
+        font-size: 1.4rem;
+        font-weight: 900;
+        color: #000000;
+        line-height: 1.35;
+    }
+
+    .card-brutal-body {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+    }
+
+    .card-brutal-details {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 10px;
+        margin-bottom: 18px;
+    }
+
+    .brutal-detail-item {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        border: 2px solid #000000;
+        padding: 6px 10px;
+        background: #eef2f7;
+        font-weight: 700;
+    }
+
+    .brutal-detail-item i {
+        color: #000000;
+        font-size: 0.9rem;
+    }
+
+    .brutal-detail-text {
+        font-size: 0.8rem;
+        color: #000000;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    .card-brutal-description {
+        font-size: 0.9rem;
+        color: #2d3748;
+        line-height: 1.6;
+        margin-bottom: 20px;
+        font-weight: 600;
+        flex: 1;
+    }
+
+    .card-brutal-footer {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        border-top: 3px solid #000000;
+        padding-top: 16px;
+        margin-top: auto;
+    }
+
+    .brutal-price-box {
+        display: flex;
+        flex-direction: column;
+    }
+
+    .brutal-price-label {
+        font-size: 0.75rem;
+        font-weight: 800;
+        color: #718096;
+        text-transform: uppercase;
+    }
+
+    .brutal-price-value {
+        font-size: 1.35rem;
+        font-weight: 900;
+        color: #e74c3c;
+    }
+
+    .brutal-price-value.free {
+        color: #2ecc71;
+    }
+
+    .brutal-btn {
+        background: #ff6b6b;
+        color: #000000 !important;
+        padding: 10px 22px;
+        border: 3px solid #000000;
+        font-weight: 900;
+        text-decoration: none;
+        font-size: 0.9rem;
+        box-shadow: 3px 3px 0px #000000;
+        transition: all 0.1s ease;
+        text-align: center;
+    }
+
+    .brutal-btn:hover {
+        transform: translate(-2px, -2px);
+        box-shadow: 5px 5px 0px #000000;
+        background: #ff8585;
+    }
+
+    .brutal-btn:active {
+        transform: translate(1px, 1px);
+        box-shadow: 2px 2px 0px #000000;
+    }
+
+    /* تعديلات النيوبوتاليزم في الوضع الداكن */
+    .dark-preview .card-brutal {
+        background: #1a1e24;
+        border-color: #ffffff;
+        box-shadow: 8px 8px 0px #ffffff;
+    }
+    .dark-preview .card-brutal:hover {
+        box-shadow: 12px 12px 0px #ffffff;
+    }
+    .dark-preview .card-brutal-header {
+        border-bottom-color: #ffffff;
+    }
+    .dark-preview .card-brutal-title {
+        color: #ffffff;
+    }
+    .dark-preview .card-brutal-organizer {
+        border-color: #ffffff;
+        box-shadow: 2px 2px 0px #ffffff;
+    }
+    .dark-preview .brutal-detail-item {
+        border-color: #ffffff;
+        background: #2d3748;
+    }
+    .dark-preview .brutal-detail-item i {
+        color: #ffffff;
+    }
+    .dark-preview .brutal-detail-text {
+        color: #ffffff;
+    }
+    .dark-preview .card-brutal-description {
+        color: #e2e8f0;
+    }
+    .dark-preview .card-brutal-footer {
+        border-top-color: #ffffff;
+    }
+    .dark-preview .brutal-price-label {
+        color: #a0aec0;
+    }
+    .dark-preview .brutal-price-value {
+        color: #ff8585;
+    }
+    .dark-preview .brutal-btn {
+        border-color: #ffffff;
+        box-shadow: 3px 3px 0px #ffffff;
+    }
+    .dark-preview .brutal-btn:hover {
+        box-shadow: 5px 5px 0px #ffffff;
+    }
+
+    /* ==========================================================================
+       نموذج 3: التصميم الأنيق الفاخر (Elegant Premium Theme)
+       ========================================================================== */
+    .card-premium {
+        background: #ffffff;
+        border-radius: 16px;
+        padding: 28px;
+        box-shadow: 0 10px 30px rgba(29, 15, 58, 0.02);
+        border: 1px solid rgba(29, 15, 58, 0.06);
+        display: flex;
+        flex-direction: column;
+        height: 100%;
+        transition: all 0.4s cubic-bezier(0.25, 1, 0.5, 1);
+        position: relative;
+    }
+
+    .card-premium:hover {
+        transform: translateY(-6px);
+        box-shadow: 0 20px 40px rgba(29, 15, 58, 0.08);
+        border-color: rgba(197, 168, 128, 0.35);
+    }
+
+    .card-premium-top {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        margin-bottom: 16px;
+    }
+
+    .card-premium-organizer {
+        font-size: 0.8rem;
+        font-weight: 700;
+        color: #c5a880;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+
+    .card-premium-badge {
+        background: #faf6f0;
+        border: 1px solid #ebdcb9;
+        color: #b08d48;
+        padding: 3px 10px;
+        border-radius: 4px;
+        font-size: 0.75rem;
+        font-weight: 700;
+    }
+
+    .card-premium-title {
+        font-size: 1.4rem;
+        font-weight: 700;
+        color: #1d0f3a;
+        line-height: 1.4;
+        margin-bottom: 14px;
+    }
+
+    .card-premium-body {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+    }
+
+    .card-premium-description {
+        font-size: 0.92rem;
+        color: #5d5a68;
+        line-height: 1.75;
+        margin-bottom: 24px;
+        flex: 1;
+    }
+
+    .card-premium-details {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        row-gap: 12px;
+        margin-bottom: 24px;
+        padding-bottom: 18px;
+        border-bottom: 1px dashed #e2e0e6;
+    }
+
+    .premium-detail-item {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        font-size: 0.85rem;
+        color: #6c6978;
+        padding: 0 10px;
+    }
+
+    .premium-detail-item i {
+        color: #c5a880;
+        font-size: 0.9rem;
+    }
+
+    /* فواصل التفاصيل بشكل مناسب للـ RTL */
+    [dir="rtl"] .premium-detail-item {
+        border-right: 1px solid #e2e0e6;
+    }
+    [dir="rtl"] .premium-detail-item:first-child {
+        border-right: none;
+        padding-right: 0;
+    }
+
+    .card-premium-footer {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-top: auto;
+    }
+
+    .premium-price-container {
+        display: flex;
+        flex-direction: column;
+    }
+
+    .premium-price-label {
+        font-size: 0.75rem;
+        color: #8f8c9c;
+        margin-bottom: 2px;
+    }
+
+    .premium-price-value {
+        font-size: 1.35rem;
+        font-weight: 700;
+        color: #1d0f3a;
+    }
+
+    .premium-price-value.free {
+        color: #27ae60;
+    }
+
+    .premium-btn {
+        background: #1d0f3a;
+        color: #ffffff !important;
+        border: 1px solid #1d0f3a;
+        padding: 10px 24px;
+        border-radius: 8px;
+        font-weight: 600;
+        font-size: 0.9rem;
+        text-decoration: none;
+        transition: all 0.3s cubic-bezier(0.165, 0.84, 0.44, 1);
+        text-align: center;
+    }
+
+    .premium-btn:hover {
+        background: #c5a880;
+        border-color: #c5a880;
+        color: #1d0f3a !important;
+        transform: translateY(-2px);
+        box-shadow: 0 6px 15px rgba(197, 168, 128, 0.3);
+    }
+
+    /* تعديلات الفاخر الأنيق في الوضع الداكن */
+    .dark-preview .card-premium {
+        background: #16141c;
+        border-color: rgba(255, 255, 255, 0.05);
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4);
+    }
+    .dark-preview .card-premium-title {
+        color: #ffffff;
+    }
+    .dark-preview .card-premium-description {
+        color: #a09eab;
+    }
+    .dark-preview .premium-detail-item {
+        color: #a09eab;
+        border-color: rgba(255, 255, 255, 0.1);
+    }
+    .dark-preview .premium-detail-item i {
+        color: #c5a880;
+    }
+    .dark-preview .card-premium-badge {
+        background: rgba(197, 168, 128, 0.1);
+        border-color: rgba(197, 168, 128, 0.25);
+        color: #c5a880;
+    }
+    .dark-preview .premium-price-value {
+        color: #ffffff;
+    }
+    .dark-preview .premium-btn {
+        background: #c5a880;
+        border-color: #c5a880;
+        color: #1d0f3a !important;
+    }
+    .dark-preview .premium-btn:hover {
+        background: #ffffff;
+        border-color: #ffffff;
+        color: #1d0f3a !important;
+    }
+</style>
+
+<div class="showcase-container">
+    <!-- مقدمة الصفحة التوضيحية -->
+    <div class="showcase-intro">
+        <h2>معرض مقارنة بطاقات البرامج الصيفية</h2>
+        <p>مرحباً بك! لقد قمنا ببرمجة وتصميم هذه الصفحة خصيصاً لمساعدتك على مقارنة بطاقة البرنامج الحالية بثلاثة تصاميم إبداعية وعصرية جديدة قمنا بابتكارها. يمكنك معاينة البطاقات تحت خلفيات مختلفة للتأكد من جماليتها وقابليتها للتطبيق.</p>
+    </div>
+
+    <!-- لوحة التحكم بالخلفية الفورية -->
+    <div class="showcase-controls">
+        <div class="controls-title">
+            <i class="fas fa-magic"></i>
+            <span>تغيير خلفية المعاينة لرؤية تأثير الشفافية والبروز:</span>
+        </div>
+        <div class="bg-switcher">
+            <button class="bg-btn active" data-bg="bg-default">
+                <i class="fas fa-image"></i> الافتراضية
+            </button>
+            <button class="bg-btn" data-bg="bg-white">
+                <i class="fas fa-square" style="color: #fff; border: 1px solid #ccc; border-radius: 2px;"></i> بيضاء نقية
+            </button>
+            <button class="bg-btn" data-bg="bg-dark">
+                <i class="fas fa-square" style="color: #111; border-radius: 2px;"></i> داكنة فاخرة
+            </button>
+            <button class="bg-btn" data-bg="bg-gradient-color">
+                <i class="fas fa-palette"></i> تدرج لوني حيوي
+            </button>
+        </div>
+    </div>
+
+    <!-- شبكة المقارنة الرئيسية -->
+    <div id="showcase-grid" class="showcase-grid bg-default">
+
+        <!-- النموذج 0: التصميم الحالي للموقع -->
+        <div class="showcase-card-wrapper">
+            <div class="showcase-label">
+                <div class="showcase-label-title">
+                    <i class="fas fa-history"></i>
+                    <span>التصميم الحالي للموقع</span>
+                </div>
+                <span class="showcase-label-badge">النموذج 0</span>
+            </div>
+            
+            <div class="program-card">
+                <div class="card-header">
+                    <h3 class="program-title"><?php echo htmlspecialchars($program['title']); ?></h3>
+                    <div class="organization">
+                        <i class="fas fa-building"></i>
+                        <?php echo htmlspecialchars($program['organizer']); ?>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <div class="program-details">
+                        <div class="detail-item">
+                            <i class="fas fa-map-marker-alt detail-icon"></i>
+                            <div class="detail-text"><?php echo htmlspecialchars($program['location']); ?></div>
+                        </div>
+                        <div class="detail-item">
+                            <i class="fas fa-clock detail-icon"></i>
+                            <div class="detail-text"><?php echo htmlspecialchars($program['duration']); ?></div>
+                        </div>
+                        <div class="detail-item">
+                            <i class="fas fa-calendar detail-icon"></i>
+                            <div class="detail-text"><?php echo htmlspecialchars($program['start_date']); ?></div>
+                        </div>
+                        <div class="detail-item">
+                            <i class="fas fa-user-friends detail-icon"></i>
+                            <div class="detail-text"><?php echo htmlspecialchars($program['age_group']); ?></div>
+                        </div>
+                        <?php if(!empty($program['attendance_type'])): ?>
+                        <div class="detail-item">
+                            <i class="fas fa-chalkboard-teacher detail-icon"></i>
+                            <div class="detail-text"><?php echo htmlspecialchars($program['attendance_type']); ?></div>
+                        </div>
+                        <?php endif; ?>
+                    </div>
+                    <?php 
+                        $description = htmlspecialchars($program['description']);
+                        $words = explode(' ', $description);
+                        $short_desc = implode(' ', array_slice($words, 0, 30));
+                    ?>
+                    <p class="program-description">
+                        <span><?php echo $short_desc; ?>...</span>
+                    </p>
+                </div>
+                <div class="card-footer">
+                    <?php
+                        $is_free = (isset($program['is_free']) && $program['is_free'] == 1) || ($program['price'] == '0' || in_array(strtolower(trim($program['price'])), ['مجاناً', 'مجاني'], true));
+                        $price_text = $is_free ? 'مجاني' : htmlspecialchars($program['price']) . ' ريال';
+                    ?>
+                    <div class="program-fee <?php echo $is_free ? 'free-badge' : ''; ?>">
+                        <?php echo $price_text; ?>
+                    </div>
+                    <a href="#" class="register-btn">سجل الآن</a>
+                </div>
+            </div>
+        </div>
+
+
+        <!-- النموذج 1: التصميم الزجاجي العصري (Modern Glassmorphism) -->
+        <div class="showcase-card-wrapper">
+            <div class="showcase-label">
+                <div class="showcase-label-title">
+                    <i class="fas fa-glass-martini-alt"></i>
+                    <span>التصميم الزجاجي العصري (Glassmorphism)</span>
+                </div>
+                <span class="showcase-label-badge">النموذج 1</span>
+            </div>
+
+            <div class="card-glass">
+                <div class="card-glass-header">
+                    <div class="card-glass-organizer">
+                        <i class="fas fa-building"></i>
+                        <span><?php echo htmlspecialchars($program['organizer']); ?></span>
+                    </div>
+                    <h3 class="card-glass-title"><?php echo htmlspecialchars($program['title']); ?></h3>
+                </div>
+                
+                <div class="card-glass-body">
+                    <div class="card-glass-details">
+                        <div class="glass-detail-item">
+                            <i class="fas fa-map-marker-alt"></i>
+                            <span class="glass-detail-text" title="<?php echo htmlspecialchars($program['location']); ?>"><?php echo htmlspecialchars($program['location']); ?></span>
+                        </div>
+                        <div class="glass-detail-item">
+                            <i class="fas fa-clock"></i>
+                            <span class="glass-detail-text" title="<?php echo htmlspecialchars($program['duration']); ?>"><?php echo htmlspecialchars($program['duration']); ?></span>
+                        </div>
+                        <div class="glass-detail-item">
+                            <i class="fas fa-calendar"></i>
+                            <span class="glass-detail-text" title="<?php echo htmlspecialchars($program['start_date']); ?>"><?php echo htmlspecialchars($program['start_date']); ?></span>
+                        </div>
+                        <div class="glass-detail-item">
+                            <i class="fas fa-user-friends"></i>
+                            <span class="glass-detail-text" title="<?php echo htmlspecialchars($program['age_group']); ?>"><?php echo htmlspecialchars($program['age_group']); ?></span>
+                        </div>
+                    </div>
+                    <p class="card-glass-description">
+                        <?php echo htmlspecialchars($program['description']); ?>
+                    </p>
+                    <div class="card-glass-footer">
+                        <div class="glass-price-box">
+                            <span class="glass-price-label">الرسوم</span>
+                            <?php
+                                $price_val = $is_free ? 'مجاني' : htmlspecialchars($program['price']) . ' ريال';
+                            ?>
+                            <span class="glass-price-value <?php echo $is_free ? 'free' : ''; ?>"><?php echo $price_val; ?></span>
+                        </div>
+                        <a href="#" class="glass-btn">سجل الآن <i class="fas fa-arrow-left" style="margin-right: 5px; font-size: 0.8rem;"></i></a>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+
+        <!-- النموذج 2: التصميم التفاعلي الجريء (Bold & Playful Neo-brutalism) -->
+        <div class="showcase-card-wrapper">
+            <div class="showcase-label">
+                <div class="showcase-label-title">
+                    <i class="fas fa-bolt"></i>
+                    <span>التصميم التفاعلي الجريء (Neo-brutalism)</span>
+                </div>
+                <span class="showcase-label-badge">النموذج 2</span>
+            </div>
+
+            <div class="card-brutal">
+                <div class="card-brutal-header">
+                    <span class="card-brutal-organizer">
+                        <i class="fas fa-building" style="margin-left: 3px;"></i>
+                        <?php echo htmlspecialchars($program['organizer']); ?>
+                    </span>
+                    <h3 class="card-brutal-title"><?php echo htmlspecialchars($program['title']); ?></h3>
+                </div>
+                
+                <div class="card-brutal-body">
+                    <div class="card-brutal-details">
+                        <div class="brutal-detail-item">
+                            <i class="fas fa-map-marker-alt"></i>
+                            <span class="brutal-detail-text"><?php echo htmlspecialchars($program['location']); ?></span>
+                        </div>
+                        <div class="brutal-detail-item">
+                            <i class="fas fa-clock"></i>
+                            <span class="brutal-detail-text"><?php echo htmlspecialchars($program['duration']); ?></span>
+                        </div>
+                        <div class="brutal-detail-item">
+                            <i class="fas fa-calendar"></i>
+                            <span class="brutal-detail-text"><?php echo htmlspecialchars($program['start_date']); ?></span>
+                        </div>
+                        <div class="brutal-detail-item">
+                            <i class="fas fa-user-friends"></i>
+                            <span class="brutal-detail-text"><?php echo htmlspecialchars($program['age_group']); ?></span>
+                        </div>
+                    </div>
+                    <p class="card-brutal-description">
+                        <?php echo htmlspecialchars($program['description']); ?>
+                    </p>
+                    <div class="card-brutal-footer">
+                        <div class="brutal-price-box">
+                            <span class="brutal-price-label">الرسوم</span>
+                            <?php
+                                $price_brutal = $is_free ? 'مجاني' : htmlspecialchars($program['price']) . ' ريال';
+                            ?>
+                            <span class="brutal-price-value <?php echo $is_free ? 'free' : ''; ?>"><?php echo $price_brutal; ?></span>
+                        </div>
+                        <a href="#" class="brutal-btn">سجل الآن</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+
+        <!-- النموذج 3: التصميم الأنيق الفاخر (Elegant Premium Theme) -->
+        <div class="showcase-card-wrapper">
+            <div class="showcase-label">
+                <div class="showcase-label-title">
+                    <i class="fas fa-crown"></i>
+                    <span>التصميم الأنيق الفاخر (Elegant Premium)</span>
+                </div>
+                <span class="showcase-label-badge">النموذج 3</span>
+            </div>
+
+            <div class="card-premium">
+                <div class="card-premium-top">
+                    <span class="card-premium-organizer"><?php echo htmlspecialchars($program['organizer']); ?></span>
+                    <span class="card-premium-badge"><?php echo htmlspecialchars($program['attendance_type'] ?? 'حضوري'); ?></span>
+                </div>
+                
+                <h3 class="card-premium-title"><?php echo htmlspecialchars($program['title']); ?></h3>
+                
+                <div class="card-premium-body">
+                    <p class="card-premium-description">
+                        <?php echo htmlspecialchars($program['description']); ?>
+                    </p>
+                    
+                    <div class="card-premium-details">
+                        <div class="premium-detail-item">
+                            <i class="fas fa-map-marker-alt"></i>
+                            <span><?php echo htmlspecialchars($program['location']); ?></span>
+                        </div>
+                        <div class="premium-detail-item">
+                            <i class="fas fa-clock"></i>
+                            <span><?php echo htmlspecialchars($program['duration']); ?></span>
+                        </div>
+                        <div class="premium-detail-item">
+                            <i class="fas fa-calendar"></i>
+                            <span><?php echo htmlspecialchars($program['start_date']); ?></span>
+                        </div>
+                        <div class="premium-detail-item">
+                            <i class="fas fa-user-friends"></i>
+                            <span><?php echo htmlspecialchars($program['age_group']); ?></span>
+                        </div>
+                    </div>
+                    
+                    <div class="card-premium-footer">
+                        <div class="premium-price-container">
+                            <span class="premium-price-label">الاستثمار</span>
+                            <?php
+                                $price_premium = $is_free ? 'مجاني' : htmlspecialchars($program['price']) . ' ريال';
+                            ?>
+                            <span class="premium-price-value <?php echo $is_free ? 'free' : ''; ?>"><?php echo $price_premium; ?></span>
+                        </div>
+                        <a href="#" class="premium-btn">سجل الآن</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    </div>
+</div>
+
+<script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+<script>
+    $(document).ready(function() {
+        $('.bg-btn').click(function() {
+            // إزالة الكلاس النشط من جميع الأزرار وإضافته للزر المحدد
+            $('.bg-btn').removeClass('active');
+            $(this).addClass('active');
+            
+            // تحديد فئة الخلفية المستهدفة
+            var bgClass = $(this).data('bg');
+            
+            // تهيئة شبكة العرض
+            $('#showcase-grid').removeClass('bg-default bg-white bg-dark bg-gradient-color');
+            $('#showcase-grid').addClass(bgClass);
+            
+            // التحكم في تفعيل الوضع الداكن بناءً على الخلفية المختارة لتغيير ألوان النصوص التوضيحية
+            if (bgClass === 'bg-dark' || bgClass === 'bg-gradient-color') {
+                $('#showcase-grid').addClass('dark-preview dark-preview-labels');
+            } else {
+                $('#showcase-grid').removeClass('dark-preview dark-preview-labels');
+            }
+        });
+    });
+</script>
+
+<?php include 'includes/footer.php'; ?>
