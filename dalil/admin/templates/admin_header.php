@@ -74,7 +74,12 @@
                 <?php if (!empty($_SESSION['permissions']['can_manage_settings'])): ?>
                 <li>
                     <a href="site_settings.php" <?php echo (basename($_SERVER['PHP_SELF']) == 'site_settings.php') ? 'class="active"' : ''; ?>>
-                        <i class="fas fa-cogs fa-fw"></i><span>إعدادات الموقع</span>
+                        <i class="fas fa-cogs fa-fw"></i><span>إعدادات الموقع العامة</span>
+                    </a>
+                </li>
+                <li>
+                    <a href="card_styles.php" <?php echo (basename($_SERVER['PHP_SELF']) == 'card_styles.php') ? 'class="active"' : ''; ?>>
+                        <i class="fas fa-palette fa-fw"></i><span>تصميم بطاقات البرامج</span>
                     </a>
                 </li>
                 <?php endif; ?>

@@ -139,6 +139,7 @@ include 'programs.php';
 <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
 <script>
     $(document).ready(function() {
+        var activeCardStyle = '<?php echo $site_settings['active_card_style'] ?? "0"; ?>';
         var activeView = localStorage.getItem('preferredView') || 'cards'; // 'cards', 'table', or 'map'
         var mapInstance = null;
 
@@ -202,44 +203,62 @@ include 'programs.php';
 
                     // إعداد بطاقة منبثقة بتصميم أنيق يتوافق مع البطاقات الأساسية للموقع
                     var isFree = (loc.price == 0 || ['مجاناً', 'مجاني'].includes(String(loc.price).trim().toLowerCase()));
-                    var priceHtml = '<div class="program-fee ' + (isFree ? 'free-badge' : '') + '">' + (isFree ? 'مجاناً' : loc.price) + '</div>';
+                    
+                    var priceNum = parseFloat(loc.price);
+                    var priceClean = (isNaN(priceNum)) ? loc.price : (priceNum == parseInt(priceNum) ? parseInt(priceNum) : priceNum);
+                    var priceText = isFree ? 'مجاناً' : priceClean + ' ريال';
+                    
+                    var priceNotesHtml = '';
+                    if (!isFree && loc.price_notes) {
+                        priceNotesHtml = `<div class="popup-price-notes">${loc.price_notes}</div>`;
+                    }
                     
                     var words = (loc.description || '').split(' ');
                     var shortDesc = words.slice(0, 15).join(' ') + (words.length > 15 ? '...' : '');
 
+                    // استخدام نفس كلاسات التخصيص والأنماط المعينة للبطاقات
                     var popupContent = `
-                        <div class="map-popup-card" style="text-align: right; direction: rtl; font-family: 'Tajawal', sans-serif; padding: 5px;">
-                            <div class="card-header" style="border-bottom: 1px solid #eee; padding-bottom: 8px; margin-bottom: 8px;">
-                                <h3 class="program-title" style="font-size: 1.1rem; font-weight: 700; margin: 0 0 5px 0; color: #212529;">${loc.title}</h3>
-                                <div class="organization" style="font-size: 0.85rem; color: #666; display: flex; align-items: center; gap: 5px;">
-                                    <i class="fas fa-building" style="color: #8a2be2;"></i>
+                        <div class="map-popup-card style-${activeCardStyle}">
+                            <div class="popup-header">
+                                <h3 class="popup-title">${loc.title}</h3>
+                                <div class="popup-organizer">
+                                    <i class="fas fa-building"></i>
                                     ${loc.organizer}
                                 </div>
                             </div>
-                            <div class="card-body" style="padding: 5px 0;">
-                                <div class="program-details" style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; font-size: 0.8rem; margin-bottom: 8px;">
-                                    <div class="detail-item" style="display: flex; align-items: center; gap: 5px;">
-                                        <i class="fas fa-map-marker-alt" style="color: #8a2be2;"></i>
+                            <div class="popup-body">
+                                <div class="popup-details">
+                                    <div class="popup-detail-item">
+                                        <i class="fas fa-map-marker-alt"></i>
                                         <span>${loc.location}</span>
                                     </div>
-                                    <div class="detail-item" style="display: flex; align-items: center; gap: 5px;">
-                                        <i class="fas fa-clock" style="color: #8a2be2;"></i>
+                                    <div class="popup-detail-item">
+                                        <i class="fas fa-clock"></i>
                                         <span>${loc.duration}</span>
                                     </div>
-                                    <div class="detail-item" style="display: flex; align-items: center; gap: 5px;">
-                                        <i class="fas fa-calendar" style="color: #8a2be2;"></i>
-                                        <span>${loc.start_date}</span>
+                                    <div class="popup-detail-item">
+                                        <i class="fas fa-calendar"></i>
+                                        <span>البدء: ${loc.start_date}</span>
                                     </div>
-                                    <div class="detail-item" style="display: flex; align-items: center; gap: 5px;">
-                                        <i class="fas fa-user-friends" style="color: #8a2be2;"></i>
+                                    ${loc.end_date ? `
+                                    <div class="popup-detail-item">
+                                        <i class="fas fa-calendar-check"></i>
+                                        <span>الانتهاء: ${loc.end_date}</span>
+                                    </div>` : ''}
+                                    <div class="popup-detail-item" style="grid-column: span 2;">
+                                        <i class="fas fa-user-friends"></i>
                                         <span>${loc.age_group}</span>
                                     </div>
                                 </div>
-                                <p class="program-description" style="font-size: 0.85rem; color: #555; line-height: 1.5; margin: 0 0 10px 0;">${shortDesc}</p>
+                                <p class="popup-description">${shortDesc}</p>
                             </div>
-                            <div class="card-footer" style="display: flex; justify-content: space-between; align-items: center; border-top: 1px solid #eee; padding-top: 8px;">
-                                ${priceHtml}
-                                <a href="${loc.registration_link || '#'}" class="register-btn" target="_blank" rel="noopener noreferrer" style="background: #8a2be2; color: white; padding: 5px 10px; border-radius: 20px; text-decoration: none; font-size: 0.8rem; font-weight: 600;">سجل الآن</a>
+                            <div class="popup-footer">
+                                <div class="popup-price-box">
+                                    <span class="popup-price-label">الرسوم</span>
+                                    <span class="popup-price-value ${isFree ? 'free' : ''}">${priceText}</span>
+                                    ${priceNotesHtml}
+                                </div>
+                                <a href="${loc.registration_link || '#'}" class="popup-register-btn" target="_blank" rel="noopener noreferrer">سجل الآن</a>
                             </div>
                         </div>
                     `;
