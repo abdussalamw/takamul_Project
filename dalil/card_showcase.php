@@ -5,14 +5,14 @@ require 'includes/db_connect.php';
 try {
     $stmt = $pdo->prepare("SELECT programs.*, COALESCE(organizers.name, programs.organizer) as organizer FROM programs LEFT JOIN organizers ON programs.organizer_id = organizers.id WHERE programs.status = 'published' ORDER BY programs.id ASC LIMIT 1");
     $stmt->execute();
-    $program = $stmt->fetch(PDO::FETCH_ASSOC);
+    $program_db = $stmt->fetch(PDO::FETCH_ASSOC);
 } catch (PDOException $e) {
-    $program = false;
+    $program_db = false;
 }
 
 // بيانات بديلة (Fallback) في حال كانت قاعدة البيانات فارغة أو حدث خطأ
-if (!$program) {
-    $program = [
+if (!$program_db) {
+    $program_db = [
         'id' => 1,
         'title' => 'فُلك فَلك',
         'organizer' => 'مؤسسة عبير المسك',
@@ -32,6 +32,33 @@ if (!$program) {
         'registration_link' => 'https://salla.sa/Folk-falak'
     ];
 }
+
+// إعداد بيانات البرنامج النشط والبرنامج المنتهي للعرض والمقارنة
+$active_program = $program_db;
+$active_price = floatval($active_program['price']);
+$active_program['price_clean'] = ($active_price == intval($active_price)) ? intval($active_price) : $active_price;
+
+$ended_program = $program_db;
+$ended_program['title'] = $program_db['title'] . ' (منتهي)';
+$ended_program['start_date'] = '2026/04/01';
+$ended_program['end_date'] = '2026/04/20'; // تاريخ في الماضي لمحاكاة الانتهاء
+$ended_price = floatval($ended_program['price']);
+$ended_program['price_clean'] = ($ended_price == intval($ended_price)) ? intval($ended_price) : $ended_price;
+
+$preview_modes = [
+    [
+        'id_suffix' => 'active',
+        'section_title' => 'معاينة البرامج النشطة (التسجيل مفتوح حالياً)',
+        'is_ended' => false,
+        'program' => $active_program
+    ],
+    [
+        'id_suffix' => 'ended',
+        'section_title' => 'معاينة البرامج المنتهية (تتحول تلقائياً للرمادي بعد انتهاء التاريخ)',
+        'is_ended' => true,
+        'program' => $ended_program
+    ]
+];
 
 include 'includes/header.php';
 ?>
@@ -141,6 +168,29 @@ include 'includes/header.php';
         box-shadow: 0 4px 10px rgba(138, 43, 226, 0.25);
     }
 
+    /* عناوين الفئات */
+    .section-preview-title {
+        font-size: 1.4rem;
+        font-weight: 800;
+        color: #2d3748;
+        margin: 50px 0 25px;
+        padding-bottom: 12px;
+        border-bottom: 2px solid #e2e8f0;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        transition: color 0.3s, border-color 0.3s;
+    }
+
+    .section-preview-title::before {
+        content: '';
+        display: inline-block;
+        width: 6px;
+        height: 24px;
+        background: var(--primary);
+        border-radius: 3px;
+    }
+
     /* شبكة العرض والتحكم */
     .showcase-grid {
         display: grid;
@@ -150,6 +200,7 @@ include 'includes/header.php';
         border-radius: 24px;
         transition: all 0.4s cubic-bezier(0.165, 0.84, 0.44, 1);
         background: transparent;
+        margin-bottom: 30px;
     }
 
     @media (max-width: 992px) {
@@ -230,6 +281,30 @@ include 'includes/header.php';
     .dark-preview-labels .showcase-label-title i {
         color: #c5a880;
     }
+    .dark-preview-labels .section-preview-title {
+        color: #ffffff;
+        border-bottom-color: rgba(255, 255, 255, 0.1);
+    }
+    .dark-preview-labels .section-preview-title::before {
+        background: #c5a880;
+    }
+
+    /* تنسيقات إضافية للأسعار والملاحظات على النموذج الحالي (0) */
+    .program-fee-wrapper {
+        display: flex;
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 4px;
+    }
+    .program-fee-notes {
+        font-size: 0.75rem;
+        color: #777;
+        font-weight: 500;
+        max-width: 180px;
+    }
+    .dark-preview .program-fee-notes {
+        color: #cbd5e0;
+    }
 
     /* ==========================================================================
        نموذج 1: التصميم الزجاجي العصري (Modern Glassmorphism)
@@ -283,10 +358,6 @@ include 'includes/header.php';
         border-radius: 50px;
         font-weight: 600;
         margin-bottom: 10px;
-    }
-
-    .card-glass-organizer i {
-        font-size: 0.8rem;
     }
 
     .card-glass-title {
@@ -356,6 +427,7 @@ include 'includes/header.php';
     .glass-price-box {
         display: flex;
         flex-direction: column;
+        align-items: flex-start;
     }
 
     .glass-price-label {
@@ -372,6 +444,14 @@ include 'includes/header.php';
 
     .glass-price-value.free {
         color: #28a745;
+    }
+
+    .glass-price-notes {
+        font-size: 0.75rem;
+        color: #718096;
+        margin-top: 4px;
+        font-weight: 500;
+        max-width: 160px;
     }
 
     .glass-btn {
@@ -420,7 +500,7 @@ include 'includes/header.php';
     .dark-preview .glass-detail-item i {
         color: #a78bfa;
     }
-    .dark-preview .glass-price-label {
+    .dark-preview .glass-price-label, .dark-preview .glass-price-notes {
         color: #a0aec0;
     }
     .dark-preview .glass-price-value {
@@ -538,6 +618,7 @@ include 'includes/header.php';
     .brutal-price-box {
         display: flex;
         flex-direction: column;
+        align-items: flex-start;
     }
 
     .brutal-price-label {
@@ -555,6 +636,14 @@ include 'includes/header.php';
 
     .brutal-price-value.free {
         color: #2ecc71;
+    }
+
+    .brutal-price-notes {
+        font-size: 0.7rem;
+        color: #4a5568;
+        margin-top: 2px;
+        font-weight: 800;
+        max-width: 150px;
     }
 
     .brutal-btn {
@@ -616,7 +705,7 @@ include 'includes/header.php';
     .dark-preview .card-brutal-footer {
         border-top-color: #ffffff;
     }
-    .dark-preview .brutal-price-label {
+    .dark-preview .brutal-price-label, .dark-preview .brutal-price-notes {
         color: #a0aec0;
     }
     .dark-preview .brutal-price-value {
@@ -742,6 +831,7 @@ include 'includes/header.php';
     .premium-price-container {
         display: flex;
         flex-direction: column;
+        align-items: flex-start;
     }
 
     .premium-price-label {
@@ -758,6 +848,14 @@ include 'includes/header.php';
 
     .premium-price-value.free {
         color: #27ae60;
+    }
+
+    .premium-price-notes {
+        font-size: 0.75rem;
+        color: #8f8c9c;
+        margin-top: 4px;
+        font-style: italic;
+        max-width: 170px;
     }
 
     .premium-btn {
@@ -808,6 +906,9 @@ include 'includes/header.php';
     .dark-preview .premium-price-value {
         color: #ffffff;
     }
+    .dark-preview .premium-price-notes {
+        color: #a09eab;
+    }
     .dark-preview .premium-btn {
         background: #c5a880;
         border-color: #c5a880;
@@ -818,20 +919,77 @@ include 'includes/header.php';
         border-color: #ffffff;
         color: #1d0f3a !important;
     }
+
+    /* ==========================================================================
+       تنسيقات البرامج المنتهية الصلاحية (Grayscale & Ended Overlay)
+       ========================================================================== */
+    .program-card.ended,
+    .card-glass.ended,
+    .card-brutal.ended,
+    .card-premium.ended {
+        position: relative;
+        filter: grayscale(0.95) contrast(0.85) brightness(0.92);
+        transition: all 0.3s;
+        pointer-events: none; /* تعطيل التحويم والتفاعل بالكامل */
+        user-select: none;
+    }
+
+    .ended-badge {
+        position: absolute;
+        top: 15px;
+        left: 15px;
+        background: #e53e3e;
+        color: white;
+        padding: 5px 14px;
+        border-radius: 50px;
+        font-size: 0.8rem;
+        font-weight: 700;
+        z-index: 20;
+        box-shadow: 0 4px 10px rgba(229, 62, 62, 0.2);
+        display: flex;
+        align-items: center;
+        gap: 6px;
+    }
+
+    /* شارة الانتهاء لبطاقة النيوبوتاليزم */
+    .card-brutal.ended .ended-badge {
+        border: 2px solid #000;
+        background: #e53e3e;
+        color: #fff;
+        border-radius: 0;
+        box-shadow: 2px 2px 0px #000;
+        top: 10px;
+        left: 10px;
+    }
+
+    /* شارة الانتهاء للبطاقة الفاخرة */
+    .card-premium.ended .ended-badge {
+        background: rgba(229, 62, 62, 0.1);
+        border: 1px solid rgba(229, 62, 62, 0.3);
+        color: #e53e3e;
+        border-radius: 4px;
+        box-shadow: none;
+    }
 </style>
 
 <div class="showcase-container">
     <!-- مقدمة الصفحة التوضيحية -->
     <div class="showcase-intro">
-        <h2>معرض مقارنة بطاقات البرامج الصيفية</h2>
-        <p>مرحباً بك! لقد قمنا ببرمجة وتصميم هذه الصفحة خصيصاً لمساعدتك على مقارنة بطاقة البرنامج الحالية بثلاثة تصاميم إبداعية وعصرية جديدة قمنا بابتكارها. يمكنك معاينة البطاقات تحت خلفيات مختلفة للتأكد من جماليتها وقابليتها للتطبيق.</p>
+        <h2>معرض مقارنة بطاقات البرامج الصيفية (محدثة)</h2>
+        <p>بناءً على طلبك ومراجعة البيانات، قمنا بإجراء التحسينات التالية على نماذج البطاقات:</p>
+        <ul style="margin-right: 20px; margin-top: 10px; line-height: 1.8; color: #555;">
+            <li><strong>تاريخ الانتهاء:</strong> تم إدراج تاريخ بدء وانتهاء البرنامج بوضوح في جميع النماذج.</li>
+            <li><strong>إزالة الهللات:</strong> تم تنظيف وعرض السعر بدون أصفار كسرية (مثال: 480 بدلاً من 480.00).</li>
+            <li><strong>ملاحظات السعر:</strong> إظهار الملاحظات (مثل خصومات المجموعات) بخط صغير وأنيق مباشرة تحت السعر.</li>
+            <li><strong>البرنامج المنتهي (الرمادي):</strong> إذا انتهت فترة البرنامج (تاريخ اليوم تجاوز تاريخ الانتهاء)، يتم تطبيق مرشح رمادي (Grayscale) لتعطيل البطاقة وإظهار شارة "انتهى التسجيل" حمراء مميزة.</li>
+        </ul>
     </div>
 
     <!-- لوحة التحكم بالخلفية الفورية -->
     <div class="showcase-controls">
         <div class="controls-title">
             <i class="fas fa-magic"></i>
-            <span>تغيير خلفية المعاينة لرؤية تأثير الشفافية والبروز:</span>
+            <span>تغيير خلفية المعاينة لرؤية تأثير الشفافية والبروز للرمادي والنشط:</span>
         </div>
         <div class="bg-switcher">
             <button class="bg-btn active" data-bg="bg-default">
@@ -849,244 +1007,286 @@ include 'includes/header.php';
         </div>
     </div>
 
-    <!-- شبكة المقارنة الرئيسية -->
-    <div id="showcase-grid" class="showcase-grid bg-default">
+    <?php foreach ($preview_modes as $mode): 
+        $program = $mode['program'];
+        $is_ended = $mode['is_ended'];
+        $is_free = (isset($program['is_free']) && $program['is_free'] == 1) || ($program['price'] == '0' || in_array(strtolower(trim($program['price'])), ['مجاناً', 'مجاني'], true));
+        $price_text = $is_free ? 'مجاني' : $program['price_clean'] . ' ريال';
+    ?>
+        <!-- عنوان القسم -->
+        <h3 class="section-preview-title"><?php echo $mode['section_title']; ?></h3>
 
-        <!-- النموذج 0: التصميم الحالي للموقع -->
-        <div class="showcase-card-wrapper">
-            <div class="showcase-label">
-                <div class="showcase-label-title">
-                    <i class="fas fa-history"></i>
-                    <span>التصميم الحالي للموقع</span>
-                </div>
-                <span class="showcase-label-badge">النموذج 0</span>
-            </div>
-            
-            <div class="program-card">
-                <div class="card-header">
-                    <h3 class="program-title"><?php echo htmlspecialchars($program['title']); ?></h3>
-                    <div class="organization">
-                        <i class="fas fa-building"></i>
-                        <?php echo htmlspecialchars($program['organizer']); ?>
-                    </div>
-                </div>
-                <div class="card-body">
-                    <div class="program-details">
-                        <div class="detail-item">
-                            <i class="fas fa-map-marker-alt detail-icon"></i>
-                            <div class="detail-text"><?php echo htmlspecialchars($program['location']); ?></div>
-                        </div>
-                        <div class="detail-item">
-                            <i class="fas fa-clock detail-icon"></i>
-                            <div class="detail-text"><?php echo htmlspecialchars($program['duration']); ?></div>
-                        </div>
-                        <div class="detail-item">
-                            <i class="fas fa-calendar detail-icon"></i>
-                            <div class="detail-text"><?php echo htmlspecialchars($program['start_date']); ?></div>
-                        </div>
-                        <div class="detail-item">
-                            <i class="fas fa-user-friends detail-icon"></i>
-                            <div class="detail-text"><?php echo htmlspecialchars($program['age_group']); ?></div>
-                        </div>
-                        <?php if(!empty($program['attendance_type'])): ?>
-                        <div class="detail-item">
-                            <i class="fas fa-chalkboard-teacher detail-icon"></i>
-                            <div class="detail-text"><?php echo htmlspecialchars($program['attendance_type']); ?></div>
-                        </div>
-                        <?php endif; ?>
-                    </div>
-                    <?php 
-                        $description = htmlspecialchars($program['description']);
-                        $words = explode(' ', $description);
-                        $short_desc = implode(' ', array_slice($words, 0, 30));
-                    ?>
-                    <p class="program-description">
-                        <span><?php echo $short_desc; ?>...</span>
-                    </p>
-                </div>
-                <div class="card-footer">
-                    <?php
-                        $is_free = (isset($program['is_free']) && $program['is_free'] == 1) || ($program['price'] == '0' || in_array(strtolower(trim($program['price'])), ['مجاناً', 'مجاني'], true));
-                        $price_text = $is_free ? 'مجاني' : htmlspecialchars($program['price']) . ' ريال';
-                    ?>
-                    <div class="program-fee <?php echo $is_free ? 'free-badge' : ''; ?>">
-                        <?php echo $price_text; ?>
-                    </div>
-                    <a href="#" class="register-btn">سجل الآن</a>
-                </div>
-            </div>
-        </div>
+        <!-- شبكة المقارنة الرئيسية للقسم -->
+        <div class="showcase-grid bg-default">
 
-
-        <!-- النموذج 1: التصميم الزجاجي العصري (Modern Glassmorphism) -->
-        <div class="showcase-card-wrapper">
-            <div class="showcase-label">
-                <div class="showcase-label-title">
-                    <i class="fas fa-glass-martini-alt"></i>
-                    <span>التصميم الزجاجي العصري (Glassmorphism)</span>
-                </div>
-                <span class="showcase-label-badge">النموذج 1</span>
-            </div>
-
-            <div class="card-glass">
-                <div class="card-glass-header">
-                    <div class="card-glass-organizer">
-                        <i class="fas fa-building"></i>
-                        <span><?php echo htmlspecialchars($program['organizer']); ?></span>
+            <!-- النموذج 0: التصميم الحالي للموقع بعد التعديلات -->
+            <div class="showcase-card-wrapper">
+                <div class="showcase-label">
+                    <div class="showcase-label-title">
+                        <i class="fas fa-history"></i>
+                        <span>التصميم الحالي للموقع</span>
                     </div>
-                    <h3 class="card-glass-title"><?php echo htmlspecialchars($program['title']); ?></h3>
+                    <span class="showcase-label-badge">النموذج 0</span>
                 </div>
                 
-                <div class="card-glass-body">
-                    <div class="card-glass-details">
-                        <div class="glass-detail-item">
-                            <i class="fas fa-map-marker-alt"></i>
-                            <span class="glass-detail-text" title="<?php echo htmlspecialchars($program['location']); ?>"><?php echo htmlspecialchars($program['location']); ?></span>
-                        </div>
-                        <div class="glass-detail-item">
-                            <i class="fas fa-clock"></i>
-                            <span class="glass-detail-text" title="<?php echo htmlspecialchars($program['duration']); ?>"><?php echo htmlspecialchars($program['duration']); ?></span>
-                        </div>
-                        <div class="glass-detail-item">
-                            <i class="fas fa-calendar"></i>
-                            <span class="glass-detail-text" title="<?php echo htmlspecialchars($program['start_date']); ?>"><?php echo htmlspecialchars($program['start_date']); ?></span>
-                        </div>
-                        <div class="glass-detail-item">
-                            <i class="fas fa-user-friends"></i>
-                            <span class="glass-detail-text" title="<?php echo htmlspecialchars($program['age_group']); ?>"><?php echo htmlspecialchars($program['age_group']); ?></span>
+                <div class="program-card <?php echo $is_ended ? 'ended' : ''; ?>">
+                    <?php if ($is_ended): ?>
+                        <div class="ended-badge"><i class="fas fa-lock"></i> انتهى التسجيل</div>
+                    <?php endif; ?>
+                    <div class="card-header">
+                        <h3 class="program-title"><?php echo htmlspecialchars($program['title']); ?></h3>
+                        <div class="organization">
+                            <i class="fas fa-building"></i>
+                            <?php echo htmlspecialchars($program['organizer']); ?>
                         </div>
                     </div>
-                    <p class="card-glass-description">
-                        <?php echo htmlspecialchars($program['description']); ?>
-                    </p>
-                    <div class="card-glass-footer">
-                        <div class="glass-price-box">
-                            <span class="glass-price-label">الرسوم</span>
-                            <?php
-                                $price_val = $is_free ? 'مجاني' : htmlspecialchars($program['price']) . ' ريال';
-                            ?>
-                            <span class="glass-price-value <?php echo $is_free ? 'free' : ''; ?>"><?php echo $price_val; ?></span>
+                    <div class="card-body">
+                        <div class="program-details">
+                            <div class="detail-item">
+                                <i class="fas fa-map-marker-alt detail-icon"></i>
+                                <div class="detail-text"><?php echo htmlspecialchars($program['location']); ?></div>
+                            </div>
+                            <div class="detail-item">
+                                <i class="fas fa-clock detail-icon"></i>
+                                <div class="detail-text"><?php echo htmlspecialchars($program['duration']); ?></div>
+                            </div>
+                            <div class="detail-item">
+                                <i class="fas fa-calendar detail-icon"></i>
+                                <div class="detail-text">البدء: <?php echo htmlspecialchars($program['start_date']); ?></div>
+                            </div>
+                            <div class="detail-item">
+                                <i class="fas fa-calendar-check detail-icon"></i>
+                                <div class="detail-text">الانتهاء: <?php echo htmlspecialchars($program['end_date']); ?></div>
+                            </div>
+                            <div class="detail-item">
+                                <i class="fas fa-user-friends detail-icon"></i>
+                                <div class="detail-text"><?php echo htmlspecialchars($program['age_group']); ?></div>
+                            </div>
                         </div>
-                        <a href="#" class="glass-btn">سجل الآن <i class="fas fa-arrow-left" style="margin-right: 5px; font-size: 0.8rem;"></i></a>
+                        <?php 
+                            $description = htmlspecialchars($program['description']);
+                            $words = explode(' ', $description);
+                            $short_desc = implode(' ', array_slice($words, 0, 30));
+                        ?>
+                        <p class="program-description">
+                            <span><?php echo $short_desc; ?>...</span>
+                        </p>
                     </div>
-                </div>
-            </div>
-        </div>
-
-
-        <!-- النموذج 2: التصميم التفاعلي الجريء (Bold & Playful Neo-brutalism) -->
-        <div class="showcase-card-wrapper">
-            <div class="showcase-label">
-                <div class="showcase-label-title">
-                    <i class="fas fa-bolt"></i>
-                    <span>التصميم التفاعلي الجريء (Neo-brutalism)</span>
-                </div>
-                <span class="showcase-label-badge">النموذج 2</span>
-            </div>
-
-            <div class="card-brutal">
-                <div class="card-brutal-header">
-                    <span class="card-brutal-organizer">
-                        <i class="fas fa-building" style="margin-left: 3px;"></i>
-                        <?php echo htmlspecialchars($program['organizer']); ?>
-                    </span>
-                    <h3 class="card-brutal-title"><?php echo htmlspecialchars($program['title']); ?></h3>
-                </div>
-                
-                <div class="card-brutal-body">
-                    <div class="card-brutal-details">
-                        <div class="brutal-detail-item">
-                            <i class="fas fa-map-marker-alt"></i>
-                            <span class="brutal-detail-text"><?php echo htmlspecialchars($program['location']); ?></span>
+                    <div class="card-footer">
+                        <div class="program-fee-wrapper">
+                            <div class="program-fee <?php echo $is_free ? 'free-badge' : ''; ?>">
+                                <?php echo $price_text; ?>
+                            </div>
+                            <?php if (!$is_free && !empty($program['price_notes'])): ?>
+                                <span class="program-fee-notes"><?php echo htmlspecialchars($program['price_notes']); ?></span>
+                            <?php endif; ?>
                         </div>
-                        <div class="brutal-detail-item">
-                            <i class="fas fa-clock"></i>
-                            <span class="brutal-detail-text"><?php echo htmlspecialchars($program['duration']); ?></span>
-                        </div>
-                        <div class="brutal-detail-item">
-                            <i class="fas fa-calendar"></i>
-                            <span class="brutal-detail-text"><?php echo htmlspecialchars($program['start_date']); ?></span>
-                        </div>
-                        <div class="brutal-detail-item">
-                            <i class="fas fa-user-friends"></i>
-                            <span class="brutal-detail-text"><?php echo htmlspecialchars($program['age_group']); ?></span>
-                        </div>
-                    </div>
-                    <p class="card-brutal-description">
-                        <?php echo htmlspecialchars($program['description']); ?>
-                    </p>
-                    <div class="card-brutal-footer">
-                        <div class="brutal-price-box">
-                            <span class="brutal-price-label">الرسوم</span>
-                            <?php
-                                $price_brutal = $is_free ? 'مجاني' : htmlspecialchars($program['price']) . ' ريال';
-                            ?>
-                            <span class="brutal-price-value <?php echo $is_free ? 'free' : ''; ?>"><?php echo $price_brutal; ?></span>
-                        </div>
-                        <a href="#" class="brutal-btn">سجل الآن</a>
+                        <a href="#" class="register-btn"><?php echo $is_ended ? 'مغلق' : 'سجل الآن'; ?></a>
                     </div>
                 </div>
             </div>
-        </div>
 
 
-        <!-- النموذج 3: التصميم الأنيق الفاخر (Elegant Premium Theme) -->
-        <div class="showcase-card-wrapper">
-            <div class="showcase-label">
-                <div class="showcase-label-title">
-                    <i class="fas fa-crown"></i>
-                    <span>التصميم الأنيق الفاخر (Elegant Premium)</span>
+            <!-- النموذج 1: التصميم الزجاجي العصري (Modern Glassmorphism) -->
+            <div class="showcase-card-wrapper">
+                <div class="showcase-label">
+                    <div class="showcase-label-title">
+                        <i class="fas fa-glass-martini-alt"></i>
+                        <span>التصميم الزجاجي العصري (Glassmorphism)</span>
+                    </div>
+                    <span class="showcase-label-badge">النموذج 1</span>
                 </div>
-                <span class="showcase-label-badge">النموذج 3</span>
-            </div>
 
-            <div class="card-premium">
-                <div class="card-premium-top">
-                    <span class="card-premium-organizer"><?php echo htmlspecialchars($program['organizer']); ?></span>
-                    <span class="card-premium-badge"><?php echo htmlspecialchars($program['attendance_type'] ?? 'حضوري'); ?></span>
-                </div>
-                
-                <h3 class="card-premium-title"><?php echo htmlspecialchars($program['title']); ?></h3>
-                
-                <div class="card-premium-body">
-                    <p class="card-premium-description">
-                        <?php echo htmlspecialchars($program['description']); ?>
-                    </p>
-                    
-                    <div class="card-premium-details">
-                        <div class="premium-detail-item">
-                            <i class="fas fa-map-marker-alt"></i>
-                            <span><?php echo htmlspecialchars($program['location']); ?></span>
+                <div class="card-glass <?php echo $is_ended ? 'ended' : ''; ?>">
+                    <?php if ($is_ended): ?>
+                        <div class="ended-badge"><i class="fas fa-lock"></i> انتهى التسجيل</div>
+                    <?php endif; ?>
+                    <div class="card-glass-header">
+                        <div class="card-glass-organizer">
+                            <i class="fas fa-building"></i>
+                            <span><?php echo htmlspecialchars($program['organizer']); ?></span>
                         </div>
-                        <div class="premium-detail-item">
-                            <i class="fas fa-clock"></i>
-                            <span><?php echo htmlspecialchars($program['duration']); ?></span>
-                        </div>
-                        <div class="premium-detail-item">
-                            <i class="fas fa-calendar"></i>
-                            <span><?php echo htmlspecialchars($program['start_date']); ?></span>
-                        </div>
-                        <div class="premium-detail-item">
-                            <i class="fas fa-user-friends"></i>
-                            <span><?php echo htmlspecialchars($program['age_group']); ?></span>
-                        </div>
+                        <h3 class="card-glass-title"><?php echo htmlspecialchars($program['title']); ?></h3>
                     </div>
                     
-                    <div class="card-premium-footer">
-                        <div class="premium-price-container">
-                            <span class="premium-price-label">الاستثمار</span>
-                            <?php
-                                $price_premium = $is_free ? 'مجاني' : htmlspecialchars($program['price']) . ' ريال';
-                            ?>
-                            <span class="premium-price-value <?php echo $is_free ? 'free' : ''; ?>"><?php echo $price_premium; ?></span>
+                    <div class="card-glass-body">
+                        <div class="card-glass-details">
+                            <div class="glass-detail-item">
+                                <i class="fas fa-map-marker-alt"></i>
+                                <span class="glass-detail-text" title="<?php echo htmlspecialchars($program['location']); ?>"><?php echo htmlspecialchars($program['location']); ?></span>
+                            </div>
+                            <div class="glass-detail-item">
+                                <i class="fas fa-clock"></i>
+                                <span class="glass-detail-text" title="<?php echo htmlspecialchars($program['duration']); ?>"><?php echo htmlspecialchars($program['duration']); ?></span>
+                            </div>
+                            <div class="glass-detail-item">
+                                <i class="fas fa-calendar"></i>
+                                <span class="glass-detail-text" title="البدء: <?php echo htmlspecialchars($program['start_date']); ?>">البدء: <?php echo htmlspecialchars($program['start_date']); ?></span>
+                            </div>
+                            <div class="glass-detail-item">
+                                <i class="fas fa-calendar-check"></i>
+                                <span class="glass-detail-text" title="الانتهاء: <?php echo htmlspecialchars($program['end_date']); ?>">الانتهاء: <?php echo htmlspecialchars($program['end_date']); ?></span>
+                            </div>
+                            <div class="glass-detail-item" style="grid-column: span 2;">
+                                <i class="fas fa-user-friends"></i>
+                                <span class="glass-detail-text" title="<?php echo htmlspecialchars($program['age_group']); ?>"><?php echo htmlspecialchars($program['age_group']); ?></span>
+                            </div>
                         </div>
-                        <a href="#" class="premium-btn">سجل الآن</a>
+                        <p class="card-glass-description">
+                            <?php echo htmlspecialchars($program['description']); ?>
+                        </p>
+                        <div class="card-glass-footer">
+                            <div class="glass-price-box">
+                                <span class="glass-price-label">الرسوم</span>
+                                <?php
+                                    $price_val = $is_free ? 'مجاني' : $program['price_clean'] . ' ريال';
+                                ?>
+                                <span class="glass-price-value <?php echo $is_free ? 'free' : ''; ?>"><?php echo $price_val; ?></span>
+                                <?php if (!$is_free && !empty($program['price_notes'])): ?>
+                                    <span class="glass-price-notes"><?php echo htmlspecialchars($program['price_notes']); ?></span>
+                                <?php endif; ?>
+                            </div>
+                            <a href="#" class="glass-btn"><?php echo $is_ended ? 'مغلق' : 'سجل الآن'; ?> <i class="fas fa-arrow-left" style="margin-right: 5px; font-size: 0.8rem;"></i></a>
+                        </div>
                     </div>
                 </div>
             </div>
-        </div>
 
-    </div>
+
+            <!-- النموذج 2: التصميم التفاعلي الجريء (Bold & Playful Neo-brutalism) -->
+            <div class="showcase-card-wrapper">
+                <div class="showcase-label">
+                    <div class="showcase-label-title">
+                        <i class="fas fa-bolt"></i>
+                        <span>التصميم التفاعلي الجريء (Neo-brutalism)</span>
+                    </div>
+                    <span class="showcase-label-badge">النموذج 2</span>
+                </div>
+
+                <div class="card-brutal <?php echo $is_ended ? 'ended' : ''; ?>">
+                    <?php if ($is_ended): ?>
+                        <div class="ended-badge"><i class="fas fa-lock"></i> انتهى التسجيل</div>
+                    <?php endif; ?>
+                    <div class="card-brutal-header">
+                        <span class="card-brutal-organizer">
+                            <i class="fas fa-building" style="margin-left: 3px;"></i>
+                            <?php echo htmlspecialchars($program['organizer']); ?>
+                        </span>
+                        <h3 class="card-brutal-title"><?php echo htmlspecialchars($program['title']); ?></h3>
+                    </div>
+                    
+                    <div class="card-brutal-body">
+                        <div class="card-brutal-details">
+                            <div class="brutal-detail-item">
+                                <i class="fas fa-map-marker-alt"></i>
+                                <span class="brutal-detail-text"><?php echo htmlspecialchars($program['location']); ?></span>
+                            </div>
+                            <div class="brutal-detail-item">
+                                <i class="fas fa-clock"></i>
+                                <span class="brutal-detail-text"><?php echo htmlspecialchars($program['duration']); ?></span>
+                            </div>
+                            <div class="brutal-detail-item">
+                                <i class="fas fa-calendar"></i>
+                                <span class="brutal-detail-text">البدء: <?php echo htmlspecialchars($program['start_date']); ?></span>
+                            </div>
+                            <div class="brutal-detail-item">
+                                <i class="fas fa-calendar-check"></i>
+                                <span class="brutal-detail-text">الانتهاء: <?php echo htmlspecialchars($program['end_date']); ?></span>
+                            </div>
+                            <div class="brutal-detail-item" style="grid-column: span 2;">
+                                <i class="fas fa-user-friends"></i>
+                                <span class="brutal-detail-text"><?php echo htmlspecialchars($program['age_group']); ?></span>
+                            </div>
+                        </div>
+                        <p class="card-brutal-description">
+                            <?php echo htmlspecialchars($program['description']); ?>
+                        </p>
+                        <div class="card-brutal-footer">
+                            <div class="brutal-price-box">
+                                <span class="brutal-price-label">الرسوم</span>
+                                <?php
+                                    $price_brutal = $is_free ? 'مجاني' : $program['price_clean'] . ' ريال';
+                                ?>
+                                <span class="brutal-price-value <?php echo $is_free ? 'free' : ''; ?>"><?php echo $price_brutal; ?></span>
+                                <?php if (!$is_free && !empty($program['price_notes'])): ?>
+                                    <span class="brutal-price-notes"><?php echo htmlspecialchars($program['price_notes']); ?></span>
+                                <?php endif; ?>
+                            </div>
+                            <a href="#" class="brutal-btn"><?php echo $is_ended ? 'مغلق' : 'سجل الآن'; ?></a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+
+            <!-- النموذج 3: التصميم الأنيق الفاخر (Elegant Premium Theme) -->
+            <div class="showcase-card-wrapper">
+                <div class="showcase-label">
+                    <div class="showcase-label-title">
+                        <i class="fas fa-crown"></i>
+                        <span>التصميم الأنيق الفاخر (Elegant Premium)</span>
+                    </div>
+                    <span class="showcase-label-badge">النموذج 3</span>
+                </div>
+
+                <div class="card-premium <?php echo $is_ended ? 'ended' : ''; ?>">
+                    <?php if ($is_ended): ?>
+                        <div class="ended-badge"><i class="fas fa-lock"></i> انتهى التسجيل</div>
+                    <?php endif; ?>
+                    <div class="card-premium-top">
+                        <span class="card-premium-organizer"><?php echo htmlspecialchars($program['organizer']); ?></span>
+                        <span class="card-premium-badge"><?php echo htmlspecialchars($program['attendance_type'] ?? 'حضوري'); ?></span>
+                    </div>
+                    
+                    <h3 class="card-premium-title"><?php echo htmlspecialchars($program['title']); ?></h3>
+                    
+                    <div class="card-premium-body">
+                        <p class="card-premium-description">
+                            <?php echo htmlspecialchars($program['description']); ?>
+                        </p>
+                        
+                        <div class="card-premium-details">
+                            <div class="premium-detail-item">
+                                <i class="fas fa-map-marker-alt"></i>
+                                <span><?php echo htmlspecialchars($program['location']); ?></span>
+                            </div>
+                            <div class="premium-detail-item">
+                                <i class="fas fa-clock"></i>
+                                <span><?php echo htmlspecialchars($program['duration']); ?></span>
+                            </div>
+                            <div class="premium-detail-item">
+                                <i class="fas fa-calendar"></i>
+                                <span>البدء: <?php echo htmlspecialchars($program['start_date']); ?></span>
+                            </div>
+                            <div class="premium-detail-item">
+                                <i class="fas fa-calendar-check"></i>
+                                <span>الانتهاء: <?php echo htmlspecialchars($program['end_date']); ?></span>
+                            </div>
+                            <div class="premium-detail-item">
+                                <i class="fas fa-user-friends"></i>
+                                <span><?php echo htmlspecialchars($program['age_group']); ?></span>
+                            </div>
+                        </div>
+                        
+                        <div class="card-premium-footer">
+                            <div class="premium-price-container">
+                                <span class="premium-price-label">الاستثمار</span>
+                                <?php
+                                    $price_premium = $is_free ? 'مجاني' : $program['price_clean'] . ' ريال';
+                                ?>
+                                <span class="premium-price-value <?php echo $is_free ? 'free' : ''; ?>"><?php echo $price_premium; ?></span>
+                                <?php if (!$is_free && !empty($program['price_notes'])): ?>
+                                    <span class="premium-price-notes"><?php echo htmlspecialchars($program['price_notes']); ?></span>
+                                <?php endif; ?>
+                            </div>
+                            <a href="#" class="premium-btn"><?php echo $is_ended ? 'مغلق' : 'سجل الآن'; ?></a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+    <?php endforeach; ?>
 </div>
 
 <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
@@ -1101,14 +1301,16 @@ include 'includes/header.php';
             var bgClass = $(this).data('bg');
             
             // تهيئة شبكة العرض
-            $('#showcase-grid').removeClass('bg-default bg-white bg-dark bg-gradient-color');
-            $('#showcase-grid').addClass(bgClass);
+            $('.showcase-grid').removeClass('bg-default bg-white bg-dark bg-gradient-color');
+            $('.showcase-grid').addClass(bgClass);
             
             // التحكم في تفعيل الوضع الداكن بناءً على الخلفية المختارة لتغيير ألوان النصوص التوضيحية
             if (bgClass === 'bg-dark' || bgClass === 'bg-gradient-color') {
-                $('#showcase-grid').addClass('dark-preview dark-preview-labels');
+                $('.showcase-container').addClass('dark-preview-labels');
+                $('.showcase-grid').addClass('dark-preview');
             } else {
-                $('#showcase-grid').removeClass('dark-preview dark-preview-labels');
+                $('.showcase-container').removeClass('dark-preview-labels');
+                $('.showcase-grid').removeClass('dark-preview');
             }
         });
     });
