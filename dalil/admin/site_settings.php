@@ -65,7 +65,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                 }
             }
 
-            $text_settings = ['guide_name', 'guide_subtitle', 'whatsapp_channel_url', 'telegram_channel_url', 'contact_number', 'contact_email'];
+            $text_settings = ['guide_name', 'guide_subtitle', 'whatsapp_channel_url', 'telegram_channel_url', 'contact_number', 'contact_email', 'google_analytics_id'];
             foreach ($text_settings as $key) {
                 if (isset($_POST[$key])) {
                     update_setting($pdo, $key, trim($_POST[$key]));
@@ -139,6 +139,11 @@ $adminController->renderMessages();
                 <div class="form-group">
                     <label for="contact_email">البريد الإلكتروني (للتذييل)</label>
                     <input type="text" id="contact_email" name="contact_email" value="<?php echo htmlspecialchars($settings['contact_email'] ?? ''); ?>" placeholder="مثال: info@example.com">
+                </div>
+                <div class="form-group">
+                    <label for="google_analytics_id">معرّف قياس إحصاءات جوجل (Google Analytics Measurement ID)</label>
+                    <input type="text" id="google_analytics_id" name="google_analytics_id" value="<?php echo htmlspecialchars($settings['google_analytics_id'] ?? ''); ?>" placeholder="G-XXXXXXXXXX">
+                    <p class="note">أدخل معرّف القياس الخاص بحساب Google Analytics الخاص بك (يبدأ بـ G- ) لربط تتبع وإحصاءات الزوار تلقائياً بكافة صفحات الموقع.</p>
                 </div>
             </div>
 
