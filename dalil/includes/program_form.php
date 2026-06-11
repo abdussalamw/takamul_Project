@@ -16,6 +16,11 @@
  *                              ad_required, current_ad_link, word_limit
  */
 
+// Fallback for options array name
+if (isset($form_options) && !isset($options)) {
+    $options = $form_options;
+}
+
 // Prevent direct access
 if (!isset($pdo) || !isset($form_data)) {
     die('Error: Missing required variables for program form template.');
