@@ -6,7 +6,9 @@
  * Uses the unified program form template.
  */
 
-include 'includes/db_connect.php';
+require_once 'includes/db_connect.php';
+require_once 'includes/functions.php';
+require_once 'includes/HijriDate.php';
 
 // Enable error reporting for debugging
 ini_set('display_errors', 1);
@@ -120,14 +122,19 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             if (empty(trim($_POST['entry_officer_name'] ?? ''))) {
                 $errors[] = "حقل 'اسم مسؤولة التواصل' مطلوب.";
             }
+            // Normalize dates to Gregorian directly in $_POST so dynamic insertion catches it
+            $_POST['start_date'] = HijriDate::normalizeToGregorian($_POST['start_date'] ?? null);
+            $_POST['end_date']   = HijriDate::normalizeToGregorian($_POST['end_date'] ?? null);
+
+            $duration = $_POST['duration'] ?? null;
+            $is_free = isset($_POST['is_free']) ? (int)$_POST['is_free'] : 1;
+
             if (empty(trim($_POST['entry_officer_phone'] ?? ''))) {
                 $errors[] = "حقل 'رقم جوال مسؤول التواصل' مطلوب.";
             }
         }
 
-        if (isset($_POST['start_date']) && !empty($_POST['start_date']) && !preg_match('/^\d{1,2}\/\d{1,2}\/\d{4}$/', $_POST['start_date'])) {
-            $errors[] = "تاريخ البدء غير صالح (يجب أن يكون DD/MM/YYYY) 🚫";
-        }
+        // Date is now normalized, no need for the old regex validation
 
         if (empty($errors)) {
             // Phone number formatting
@@ -179,7 +186,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                 $pdo->beginTransaction();
 
                 if ($organizer_id === 'new') {
-                    $stmtOrg = $pdo->prepare("INSERT INTO organizers (name, department, entry_officer_name, entry_officer_phone) VALUES (?, ?, ?, ?)");
+                    $stmtOrg = $pdo->prepare("INSERT INTO organizers (name, sub_name, communication_officer_name, communication_officer_phone) VALUES (?, ?, ?, ?)");
                     $stmtOrg->execute([
                         trim($_POST['organizer_name']),
                         trim($_POST['organizer_department'] ?? ''),
@@ -189,7 +196,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                     $resolved_organizer_id = $pdo->lastInsertId();
                 } else {
                     $resolved_organizer_id = (int)$organizer_id;
-                    $stmtOrg = $pdo->prepare("UPDATE organizers SET name = ?, department = ?, entry_officer_name = ?, entry_officer_phone = ? WHERE id = ?");
+                    $stmtOrg = $pdo->prepare("UPDATE organizers SET name = ?, sub_name = ?, communication_officer_name = ?, communication_officer_phone = ? WHERE id = ?");
                     $stmtOrg->execute([
                         trim($_POST['organizer_name']),
                         trim($_POST['organizer_department'] ?? ''),

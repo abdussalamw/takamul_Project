@@ -1292,3 +1292,175 @@ input:checked + .slider:before {
 .back-btn:hover {
     color: var(--primary);
 }
+
+/* --- User Dropdown Menu --- */
+.topbar-user.dropdown {
+    position: relative;
+    cursor: pointer;
+    user-select: none;
+}
+
+.topbar-user .dropdown-toggle {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    text-decoration: none;
+    color: var(--text-main);
+}
+
+.topbar-user .toggle-arrow {
+    font-size: 0.8rem;
+    color: var(--text-light);
+    transition: var(--transition-smooth);
+}
+
+.topbar-user.dropdown:hover .toggle-arrow {
+    transform: rotate(180deg);
+}
+
+.topbar-user .dropdown-menu {
+    position: absolute;
+    top: calc(100% + 10px);
+    left: 0;
+    background: var(--bg-card);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border: 1px solid var(--border-glass);
+    border-radius: var(--radius-md);
+    box-shadow: var(--shadow-md);
+    min-width: 180px;
+    opacity: 0;
+    visibility: hidden;
+    transform: translateY(10px);
+    transition: var(--transition-smooth);
+    z-index: 1000;
+    overflow: hidden;
+    padding: 6px 0;
+}
+
+.topbar-user.dropdown:hover .dropdown-menu {
+    opacity: 1;
+    visibility: visible;
+    transform: translateY(0);
+}
+
+.topbar-user .dropdown-menu a {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 16px;
+    color: var(--text-main);
+    text-decoration: none;
+    font-size: 0.9rem;
+    font-weight: 600;
+    transition: var(--transition-smooth);
+    text-align: right;
+}
+
+.topbar-user .dropdown-menu a:hover {
+    background: rgba(99, 102, 241, 0.06);
+    color: var(--primary);
+}
+
+.topbar-user .dropdown-menu a.logout-link:hover {
+    background: rgba(244, 63, 94, 0.06);
+    color: var(--secondary);
+}
+
+/* --- Modal Window (Glassmorphic Backdrop & Card) --- */
+.modal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(15, 23, 42, 0.4);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 2000;
+    opacity: 0;
+    visibility: hidden;
+    transition: var(--transition-smooth);
+}
+
+.modal.open {
+    opacity: 1;
+    visibility: visible;
+}
+
+.modal-content {
+    background: var(--bg-card);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border: 1px solid var(--border-glass);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-lg);
+    width: 90%;
+    max-width: 500px;
+    padding: 30px;
+    transform: translateY(-30px);
+    transition: var(--transition-smooth);
+}
+
+.modal.open .modal-content {
+    transform: translateY(0);
+}
+
+.modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 24px;
+    padding-bottom: 12px;
+    border-bottom: 1px solid var(--border-subtle);
+}
+
+.modal-header h3 {
+    font-size: 1.2rem;
+    font-weight: 800;
+    color: var(--primary);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin: 0;
+}
+
+.close-modal-btn {
+    font-size: 1.5rem;
+    color: var(--text-muted);
+    cursor: pointer;
+    transition: var(--transition-smooth);
+    border: none;
+    background: none;
+    line-height: 1;
+}
+
+.close-modal-btn:hover {
+    color: var(--danger);
+}
+
+/* --- Toggle switch alignment in user permissions table --- */
+.users-table td .switch {
+    display: block;
+    margin: 0 auto;
+}
+
+.users-table td {
+    text-align: center;
+}
+
+/* Password Change Button (Key icon) */
+.password-btn {
+    background: white;
+    color: var(--primary);
+    border: 1px solid var(--primary-light);
+}
+
+.password-btn:hover {
+    background: rgba(99, 102, 241, 0.06);
+    color: var(--primary-dark);
+}
+

@@ -124,7 +124,7 @@ function getFormValueChecked($data, $key, $value, $delimiter = ',') {
 // Fetch organizers data
 $orgs_data = [];
 try {
-    $orgs_data = $pdo->query("SELECT id, name, department AS sub_name, entry_officer_name, entry_officer_phone FROM organizers ORDER BY name ASC")->fetchAll(PDO::FETCH_ASSOC);
+    $orgs_data = $pdo->query("SELECT id, name, sub_name, communication_officer_name, communication_officer_phone FROM organizers ORDER BY name ASC")->fetchAll(PDO::FETCH_ASSOC);
 } catch (PDOException $e) {
     // Silently fail
 }

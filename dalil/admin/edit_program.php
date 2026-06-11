@@ -3,6 +3,7 @@
 
 // Include dependencies
 include_once '../includes/db_connect.php';
+include_once '../includes/HijriDate.php';
 include_once 'AdminController.php';
 
 // Initialize AdminController
@@ -22,9 +23,9 @@ try {
     $stmt = $pdo->prepare("
         SELECT p.*, 
                o.name as organizer_name, 
-               o.department as organizer_department, 
-               o.entry_officer_name, 
-               o.entry_officer_phone 
+               o.sub_name as organizer_department, 
+               o.communication_officer_name as entry_officer_name, 
+               o.communication_officer_phone as entry_officer_phone 
         FROM programs p 
         LEFT JOIN organizers o ON p.organizer_id = o.id 
         WHERE p.id = ?
@@ -66,6 +67,10 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                 $adminController->setErrorMessage($error_message);
             }
         }
+
+        // Normalize dates to Gregorian directly in $_POST so dynamic update catches it
+        $_POST['start_date'] = HijriDate::normalizeToGregorian($_POST['start_date'] ?? null);
+        $_POST['end_date']   = HijriDate::normalizeToGregorian($_POST['end_date'] ?? null);
 
         // --- Validate Data ---
         $field_translations = [
@@ -164,7 +169,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                 $pdo->beginTransaction();
 
                 if ($organizer_id === 'new') {
-                    $stmtOrg = $pdo->prepare("INSERT INTO organizers (name, department, entry_officer_name, entry_officer_phone) VALUES (?, ?, ?, ?)");
+                    $stmtOrg = $pdo->prepare("INSERT INTO organizers (name, sub_name, communication_officer_name, communication_officer_phone) VALUES (?, ?, ?, ?)");
                     $stmtOrg->execute([
                         trim($_POST['organizer_name']),
                         trim($_POST['organizer_department'] ?? ''),
@@ -174,7 +179,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                     $resolved_organizer_id = $pdo->lastInsertId();
                 } else {
                     $resolved_organizer_id = (int)$organizer_id;
-                    $stmtOrg = $pdo->prepare("UPDATE organizers SET name = ?, department = ?, entry_officer_name = ?, entry_officer_phone = ? WHERE id = ?");
+                    $stmtOrg = $pdo->prepare("UPDATE organizers SET name = ?, sub_name = ?, communication_officer_name = ?, communication_officer_phone = ? WHERE id = ?");
                     $stmtOrg->execute([
                         trim($_POST['organizer_name']),
                         trim($_POST['organizer_department'] ?? ''),

@@ -102,9 +102,16 @@
             <div class="topbar-title">
                 <h2><?php echo isset($page_title) ? htmlspecialchars($page_title) : 'الصفحة الرئيسية'; ?></h2>
             </div>
-            <div class="topbar-user">
-                <i class="fas fa-user-circle"></i>
-                <span>أهلاً بك, <?php echo htmlspecialchars($_SESSION['username']); ?></span>
+            <div class="topbar-user dropdown">
+                <div class="dropdown-toggle">
+                    <i class="fas fa-user-circle"></i>
+                    <span>أهلاً بك، <?php echo htmlspecialchars($_SESSION['username']); ?></span>
+                    <i class="fas fa-chevron-down toggle-arrow"></i>
+                </div>
+                <div class="dropdown-menu">
+                    <a href="change_password.php"><i class="fas fa-key fa-fw"></i> تغيير كلمة المرور</a>
+                    <a href="logout.php" class="logout-link"><i class="fas fa-sign-out-alt fa-fw"></i> تسجيل الخروج</a>
+                </div>
             </div>
         </header>
 

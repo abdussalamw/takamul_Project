@@ -35,143 +35,32 @@ $active_style = $site_settings['active_card_style'] ?? '0';
                         }
                     }
 
-                    $description = htmlspecialchars($program['description']);
+                    $description = htmlspecialchars($program['description'] ?? '');
                     $words = explode(' ', $description);
                     $short_desc = implode(' ', array_slice($words, 0, 30));
                     $show_more = count($words) > 30;
+
+                    $start_dates = HijriDate::getDatesForDisplay($program['start_date']);
+                    $end_dates = HijriDate::getDatesForDisplay($program['end_date']);
+                    $start_date_html = $start_dates['hijri'] ? "{$start_dates['hijri']} <small style='display:block; color:#888; font-size:0.85em; margin-top:2px;'>{$start_dates['gregorian']}</small>" : "-";
+                    $end_date_html = $end_dates['hijri'] ? "{$end_dates['hijri']} <small style='display:block; color:#888; font-size:0.85em; margin-top:2px;'>{$end_dates['gregorian']}</small>" : "-";
                 ?>
                 
-                <?php if ($active_style == '1'): // Glassmorphism ?>
-                    <div class="card-glass <?php echo $is_ended ? 'ended' : ''; ?>">
-                        <?php if ($is_ended): ?>
-                            <div class="ended-badge"><i class="fas fa-lock"></i> انتهى التسجيل</div>
-                        <?php endif; ?>
-                        <div class="card-glass-header">
-                            <div class="card-glass-organizer">
-                                <i class="fas fa-building"></i>
-                                <span><?php echo htmlspecialchars($program['organizer']); ?></span>
-                            </div>
-                            <h3 class="card-glass-title"><?php echo htmlspecialchars($program['title']); ?></h3>
-                        </div>
-                        
-                        <div class="card-glass-body">
-                            <div class="card-glass-details">
-                                <div class="glass-detail-item">
-                                    <i class="fas fa-map-marker-alt"></i>
-                                    <span class="glass-detail-text" title="<?php echo htmlspecialchars($program['location']); ?>"><?php echo htmlspecialchars($program['location']); ?></span>
-                                </div>
-                                <div class="glass-detail-item">
-                                    <i class="fas fa-clock"></i>
-                                    <span class="glass-detail-text" title="<?php echo htmlspecialchars($program['duration']); ?>"><?php echo htmlspecialchars($program['duration']); ?></span>
-                                </div>
-                                <div class="glass-detail-item">
-                                    <i class="fas fa-calendar"></i>
-                                    <span class="glass-detail-text" title="البدء: <?php echo htmlspecialchars($program['start_date']); ?>">البدء: <?php echo htmlspecialchars($program['start_date']); ?></span>
-                                </div>
-                                <div class="glass-detail-item">
-                                    <i class="fas fa-calendar-check"></i>
-                                    <span class="glass-detail-text" title="الانتهاء: <?php echo htmlspecialchars($program['end_date']); ?>">الانتهاء: <?php echo htmlspecialchars($program['end_date']); ?></span>
-                                </div>
-                                <div class="glass-detail-item" style="grid-column: span 2;">
-                                    <i class="fas fa-user-friends"></i>
-                                    <span class="glass-detail-text" title="<?php echo htmlspecialchars($program['age_group']); ?>"><?php echo htmlspecialchars($program['age_group']); ?></span>
-                                </div>
-                            </div>
-                            <p class="card-glass-description">
-                                <span class="short-desc"><?php echo $short_desc . ($show_more ? '...' : ''); ?></span>
-                                <?php if ($show_more): ?>
-                                    <span class="full-desc" style="display: none;"><?php echo $description; ?></span>
-                                    <a href="#" class="read-more">قراءة المزيد</a>
-                                    <a href="#" class="read-less" style="display: none;">عرض أقل</a>
-                                <?php endif; ?>
-                            </p>
-                            <div class="card-glass-footer">
-                                <div class="glass-price-box">
-                                    <span class="glass-price-label">الرسوم</span>
-                                    <span class="glass-price-value <?php echo $is_free ? 'free' : ''; ?>"><?php echo $price_text; ?></span>
-                                    <?php if (!$is_free && !empty($program['price_notes'])): ?>
-                                        <span class="glass-price-notes"><?php echo htmlspecialchars($program['price_notes']); ?></span>
-                                    <?php endif; ?>
-                                </div>
-                                <a href="<?php echo !empty($program['registration_link']) ? htmlspecialchars($program['registration_link']) : '#'; ?>" 
-                                   class="glass-btn" 
-                                   <?php if(!empty($program['registration_link'])): ?>target="_blank" rel="noopener noreferrer"<?php endif; ?>>
-                                   <?php echo $is_ended ? 'مغلق' : 'سجل الآن'; ?> <i class="fas fa-arrow-left" style="margin-right: 5px; font-size: 0.8rem;"></i>
-                                </a>
-                            </div>
-                        </div>
-                    </div>
-                <?php elseif ($active_style == '2'): // Neo-brutalism ?>
-                    <div class="card-brutal <?php echo $is_ended ? 'ended' : ''; ?>">
-                        <?php if ($is_ended): ?>
-                            <div class="ended-badge"><i class="fas fa-lock"></i> انتهى التسجيل</div>
-                        <?php endif; ?>
-                        <div class="card-brutal-header">
-                            <span class="card-brutal-organizer">
-                                <i class="fas fa-building" style="margin-left: 3px;"></i>
-                                <?php echo htmlspecialchars($program['organizer']); ?>
-                            </span>
-                            <h3 class="card-brutal-title"><?php echo htmlspecialchars($program['title']); ?></h3>
-                        </div>
-                        
-                        <div class="card-brutal-body">
-                            <div class="card-brutal-details">
-                                <div class="brutal-detail-item">
-                                    <i class="fas fa-map-marker-alt"></i>
-                                    <span class="brutal-detail-text"><?php echo htmlspecialchars($program['location']); ?></span>
-                                </div>
-                                <div class="brutal-detail-item">
-                                    <i class="fas fa-clock"></i>
-                                    <span class="brutal-detail-text"><?php echo htmlspecialchars($program['duration']); ?></span>
-                                </div>
-                                <div class="brutal-detail-item">
-                                    <i class="fas fa-calendar"></i>
-                                    <span class="brutal-detail-text">البدء: <?php echo htmlspecialchars($program['start_date']); ?></span>
-                                </div>
-                                <div class="brutal-detail-item">
-                                    <i class="fas fa-calendar-check"></i>
-                                    <span class="brutal-detail-text">الانتهاء: <?php echo htmlspecialchars($program['end_date']); ?></span>
-                                </div>
-                                <div class="brutal-detail-item" style="grid-column: span 2;">
-                                    <i class="fas fa-user-friends"></i>
-                                    <span class="brutal-detail-text"><?php echo htmlspecialchars($program['age_group']); ?></span>
-                                </div>
-                            </div>
-                            <p class="card-brutal-description">
-                                <span class="short-desc"><?php echo $short_desc . ($show_more ? '...' : ''); ?></span>
-                                <?php if ($show_more): ?>
-                                    <span class="full-desc" style="display: none;"><?php echo $description; ?></span>
-                                    <a href="#" class="read-more">قراءة المزيد</a>
-                                    <a href="#" class="read-less" style="display: none;">عرض أقل</a>
-                                <?php endif; ?>
-                            </p>
-                            <div class="card-brutal-footer">
-                                <div class="brutal-price-box">
-                                    <span class="brutal-price-label">الرسوم</span>
-                                    <span class="brutal-price-value <?php echo $is_free ? 'free' : ''; ?>"><?php echo $price_text; ?></span>
-                                    <?php if (!$is_free && !empty($program['price_notes'])): ?>
-                                        <span class="brutal-price-notes"><?php echo htmlspecialchars($program['price_notes']); ?></span>
-                                    <?php endif; ?>
-                                </div>
-                                <a href="<?php echo !empty($program['registration_link']) ? htmlspecialchars($program['registration_link']) : '#'; ?>" 
-                                   class="brutal-btn" 
-                                   <?php if(!empty($program['registration_link'])): ?>target="_blank" rel="noopener noreferrer"<?php endif; ?>>
-                                   <?php echo $is_ended ? 'مغلق' : 'سجل الآن'; ?>
-                                </a>
-                            </div>
-                        </div>
-                    </div>
-                <?php elseif ($active_style == '3'): // Elegant Premium ?>
+                <?php if ($active_style == '3'): // Elegant Premium ?>
                     <div class="card-premium <?php echo $is_ended ? 'ended' : ''; ?>">
                         <?php if ($is_ended): ?>
                             <div class="ended-badge"><i class="fas fa-lock"></i> انتهى التسجيل</div>
                         <?php endif; ?>
-                        <div class="card-premium-top">
-                            <span class="card-premium-organizer"><?php echo htmlspecialchars($program['organizer']); ?></span>
-                            <span class="card-premium-badge"><?php echo htmlspecialchars($program['attendance_type'] ?? 'حضوري'); ?></span>
+                        <div class="premium-header">
+                            <h3 class="premium-header-title"><?php echo htmlspecialchars($program['title'] ?? ''); ?></h3>
+                            <div class="premium-header-top">
+                                <span class="premium-header-organizer">
+                                    <i class="fas fa-building"></i>
+                                    <?php echo htmlspecialchars($program['organizer'] ?? ''); ?>
+                                </span>
+                                <span class="premium-header-badge"><?php echo htmlspecialchars($program['attendance_type'] ?? 'حضوري'); ?></span>
+                            </div>
                         </div>
-                        
-                        <h3 class="card-premium-title"><?php echo htmlspecialchars($program['title']); ?></h3>
                         
                         <div class="card-premium-body">
                             <p class="card-premium-description">
@@ -186,23 +75,23 @@ $active_style = $site_settings['active_card_style'] ?? '0';
                             <div class="card-premium-details">
                                 <div class="premium-detail-item">
                                     <i class="fas fa-map-marker-alt"></i>
-                                    <span><?php echo htmlspecialchars($program['location']); ?></span>
+                                    <span><?php echo htmlspecialchars($program['venue_name'] ?? $program['location'] ?? ''); ?></span>
                                 </div>
                                 <div class="premium-detail-item">
                                     <i class="fas fa-clock"></i>
-                                    <span><?php echo htmlspecialchars($program['duration']); ?></span>
+                                    <span><?php echo htmlspecialchars($program['duration'] ?? ''); ?></span>
                                 </div>
                                 <div class="premium-detail-item">
                                     <i class="fas fa-calendar"></i>
-                                    <span>البدء: <?php echo htmlspecialchars($program['start_date']); ?></span>
+                                    <span>البدء:<br><?php echo $start_date_html; ?></span>
                                 </div>
                                 <div class="premium-detail-item">
                                     <i class="fas fa-calendar-check"></i>
-                                    <span>الانتهاء: <?php echo htmlspecialchars($program['end_date']); ?></span>
+                                    <span>الانتهاء:<br><?php echo $end_date_html; ?></span>
                                 </div>
                                 <div class="premium-detail-item">
                                     <i class="fas fa-user-friends"></i>
-                                    <span><?php echo htmlspecialchars($program['age_group']); ?></span>
+                                    <span><?php echo htmlspecialchars($program['age_group'] ?? ''); ?></span>
                                 </div>
                             </div>
                             
@@ -211,10 +100,10 @@ $active_style = $site_settings['active_card_style'] ?? '0';
                                     <span class="premium-price-label">الاستثمار</span>
                                     <span class="premium-price-value <?php echo $is_free ? 'free' : ''; ?>"><?php echo $price_text; ?></span>
                                     <?php if (!$is_free && !empty($program['price_notes'])): ?>
-                                        <span class="premium-price-notes"><?php echo htmlspecialchars($program['price_notes']); ?></span>
+                                        <span class="premium-price-notes"><?php echo htmlspecialchars($program['price_notes'] ?? ''); ?></span>
                                     <?php endif; ?>
                                 </div>
-                                <a href="<?php echo !empty($program['registration_link']) ? htmlspecialchars($program['registration_link']) : '#'; ?>" 
+                                <a href="<?php echo !empty($program['registration_link']) ? htmlspecialchars($program['registration_link'] ?? '') : '#'; ?>" 
                                    class="premium-btn" 
                                    <?php if(!empty($program['registration_link'])): ?>target="_blank" rel="noopener noreferrer"<?php endif; ?>>
                                    <?php echo $is_ended ? 'مغلق' : 'سجل الآن'; ?>
@@ -222,39 +111,39 @@ $active_style = $site_settings['active_card_style'] ?? '0';
                             </div>
                         </div>
                     </div>
-                <?php else: // Model 0: Default Current ?>
+                <?php else: // Default current design ?>
                     <div class="program-card <?php echo $is_ended ? 'ended' : ''; ?>">
                         <?php if ($is_ended): ?>
                             <div class="ended-badge"><i class="fas fa-lock"></i> انتهى التسجيل</div>
                         <?php endif; ?>
                         <div class="card-header">
-                            <h3 class="program-title"><?php echo htmlspecialchars($program['title']); ?></h3>
+                            <h3 class="program-title"><?php echo htmlspecialchars($program['title'] ?? ''); ?></h3>
                             <div class="organization">
                                 <i class="fas fa-building"></i>
-                                <?php echo htmlspecialchars($program['organizer']); ?>
+                                <?php echo htmlspecialchars($program['organizer'] ?? ''); ?>
                             </div>
                         </div>
                         <div class="card-body">
                             <div class="program-details">
                                 <div class="detail-item">
                                     <i class="fas fa-map-marker-alt detail-icon"></i>
-                                    <div class="detail-text"><?php echo htmlspecialchars($program['location']); ?></div>
+                                    <div class="detail-text"><?php echo htmlspecialchars($program['venue_name'] ?? $program['location'] ?? ''); ?></div>
                                 </div>
                                 <div class="detail-item">
                                     <i class="fas fa-clock detail-icon"></i>
-                                    <div class="detail-text"><?php echo htmlspecialchars($program['duration']); ?></div>
+                                    <div class="detail-text"><?php echo htmlspecialchars($program['duration'] ?? ''); ?></div>
                                 </div>
                                 <div class="detail-item">
                                     <i class="fas fa-calendar detail-icon"></i>
-                                    <div class="detail-text">البدء: <?php echo htmlspecialchars($program['start_date']); ?></div>
+                                    <div class="detail-text">البدء:<br><?php echo $start_date_html; ?></div>
                                 </div>
                                 <div class="detail-item">
                                     <i class="fas fa-calendar-check detail-icon"></i>
-                                    <div class="detail-text">الانتهاء: <?php echo htmlspecialchars($program['end_date']); ?></div>
+                                    <div class="detail-text">الانتهاء:<br><?php echo $end_date_html; ?></div>
                                 </div>
                                 <div class="detail-item">
                                     <i class="fas fa-user-friends detail-icon"></i>
-                                    <div class="detail-text" title="<?php echo htmlspecialchars($program['target_notes'] ?? ''); ?>"><?php echo htmlspecialchars($program['age_group']); ?></div>
+                                    <div class="detail-text" title="<?php echo htmlspecialchars($program['target_notes'] ?? ''); ?>"><?php echo htmlspecialchars($program['age_group'] ?? ''); ?></div>
                                 </div>
                             </div>
                             <p class="program-description">
@@ -272,10 +161,10 @@ $active_style = $site_settings['active_card_style'] ?? '0';
                                     <?php echo $price_text; ?>
                                 </div>
                                 <?php if (!$is_free && !empty($program['price_notes'])): ?>
-                                    <span class="program-fee-notes"><?php echo htmlspecialchars($program['price_notes']); ?></span>
+                                    <span class="program-fee-notes"><?php echo htmlspecialchars($program['price_notes'] ?? ''); ?></span>
                                 <?php endif; ?>
                             </div>
-                            <a href="<?php echo !empty($program['registration_link']) ? htmlspecialchars($program['registration_link']) : '#'; ?>" 
+                            <a href="<?php echo !empty($program['registration_link']) ? htmlspecialchars($program['registration_link'] ?? '') : '#'; ?>" 
                                class="register-btn" 
                                <?php if(!empty($program['registration_link'])): ?>target="_blank" rel="noopener noreferrer"<?php endif; ?>>
                                <?php echo $is_ended ? 'مغلق' : 'سجل الآن'; ?>
@@ -312,22 +201,27 @@ $active_style = $site_settings['active_card_style'] ?? '0';
                                 </tr>
                             </thead>
                             <tbody>
-                                <?php foreach ($programs_in_direction as $program): ?>
+                                <?php foreach ($programs_in_direction as $program): 
+                                    $tbl_start_dates = HijriDate::getDatesForDisplay($program['start_date']);
+                                    $tbl_end_dates = HijriDate::getDatesForDisplay($program['end_date']);
+                                    $tbl_start_date_html = $tbl_start_dates['hijri'] ? "{$tbl_start_dates['hijri']} <small style='display:block; color:#888; font-size:0.85em; margin-top:2px;'>{$tbl_start_dates['gregorian']}</small>" : "-";
+                                    $tbl_end_date_html = $tbl_end_dates['hijri'] ? "{$tbl_end_dates['hijri']} <small style='display:block; color:#888; font-size:0.85em; margin-top:2px;'>{$tbl_end_dates['gregorian']}</small>" : "-";
+                                ?>
                                     <tr>
-                                        <td><?php echo htmlspecialchars($program['title']); ?></td>
-                                        <td><?php echo htmlspecialchars($program['organizer']); ?></td>
-                                        <td><?php echo htmlspecialchars($program['start_date']); ?></td>
-                                        <td><?php echo htmlspecialchars($program['location']); ?></td>
+                                        <td><?php echo htmlspecialchars($program['title'] ?? ''); ?></td>
+                                        <td><?php echo htmlspecialchars($program['organizer'] ?? ''); ?></td>
+                                        <td><?php echo $tbl_start_date_html; ?></td>
+                                        <td><?php echo htmlspecialchars($program['venue_name'] ?? $program['location'] ?? ''); ?></td>
                                         <td><?php echo htmlspecialchars($program['attendance_type'] ?? 'حضوري'); ?></td>
                                         <td title="<?php echo htmlspecialchars($program['price_notes'] ?? ''); ?>">
                                             <?php
                                                 $is_free_table = (isset($program['is_free']) && $program['is_free'] == 1) || ($program['price'] == '0' || in_array(strtolower(trim($program['price'])), ['مجاناً', 'مجاني'], true));
-                                                echo $is_free_table ? 'مجاني' : htmlspecialchars($program['price']);
+                                                echo $is_free_table ? 'مجاني' : htmlspecialchars($program['price'] ?? '');
                                             ?>
                                         </td>
                                         <td>
                                             <?php if (!empty($program['registration_link'])): ?>
-                                                <a href="<?php echo htmlspecialchars($program['registration_link']); ?>" target="_blank" rel="noopener noreferrer" class="register-btn-table">رابط مباشر</a>
+                                                <a href="<?php echo htmlspecialchars($program['registration_link'] ?? ''); ?>" target="_blank" rel="noopener noreferrer" class="register-btn-table">رابط مباشر</a>
                                             <?php else: ?>
                                                 -
                                             <?php endif; ?>

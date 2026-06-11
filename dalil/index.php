@@ -1,5 +1,6 @@
 <?php
-include 'includes/db_connect.php';
+include_once 'includes/db_connect.php';
+include_once 'includes/HijriDate.php';
 
 // بناء استعلام SQL بناءً على الفلاتر
 $where_clauses = [];
@@ -43,7 +44,8 @@ switch ($sort) {
         break;
     case 'الأقرب تاريخاً':
     default:
-        $sql .= " ORDER BY STR_TO_DATE(start_date, '%d/%m/%Y')";
+        // التواريخ مخزنة الآن بصيغة ميلادية قياسية YYYY-MM-DD
+        $sql .= " ORDER BY start_date ASC";
         break;
 }
 
