@@ -21,20 +21,12 @@
         const entryPhoneInput = document.getElementById('entry_officer_phone');
 
         function adjustLayout(val) {
-            if (val === 'new') {
+            // Both fields are now statically displayed and half-width to allow editing organizer names.
+            if (orgNameInput) {
                 orgNameInput.setAttribute('required', 'required');
-                if (nameGroup) nameGroup.style.display = 'block';
-                if (phoneGroup) {
-                    phoneGroup.classList.remove('full-width');
-                    phoneGroup.classList.add('half-width');
-                }
-            } else {
-                orgNameInput.removeAttribute('required');
-                if (nameGroup) nameGroup.style.display = 'none';
-                if (phoneGroup) {
-                    phoneGroup.classList.remove('half-width');
-                    phoneGroup.classList.add('full-width');
-                }
+            }
+            if (nameGroup) {
+                nameGroup.style.display = 'block';
             }
         }
 
