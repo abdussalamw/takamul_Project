@@ -55,6 +55,24 @@ class AdminController {
             return false;
         }
 
+        // Debug logging
+        $log_data = sprintf(
+            "[%s] IP: %s | URL: %s | Content Length: %s\n" .
+            "  POST Token: %s\n" .
+            "  SESSION Token: %s\n" .
+            "  POST Keys: %s\n" .
+            "  SESSION Keys: %s\n\n",
+            date('Y-m-d H:i:s'),
+            $_SERVER['REMOTE_ADDR'] ?? 'unknown',
+            $_SERVER['REQUEST_URI'] ?? 'unknown',
+            $_SERVER['CONTENT_LENGTH'] ?? '0',
+            var_export($token, true),
+            var_export($_SESSION['csrf_token'] ?? null, true),
+            implode(', ', array_keys($_POST)),
+            implode(', ', array_keys($_SESSION))
+        );
+        @file_put_contents(__DIR__ . '/csrf_debug.log', $log_data, FILE_APPEND);
+
         if ($token === null || !is_string($token) || empty($_SESSION['csrf_token'])) {
             return false;
         }
