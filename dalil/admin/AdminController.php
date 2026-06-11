@@ -48,10 +48,16 @@ class AdminController {
         $this->csrf_token = $_SESSION['csrf_token'];
     }
     
-    /**
-     * Verify CSRF token
-     */
-    public function verifyCSRFToken($token) {
+    public function verifyCSRFToken($token = null) {
+        // Detect if POST data was discarded because of exceeding post_max_size
+        if ($_SERVER['REQUEST_METHOD'] === 'POST' && empty($_POST) && isset($_SERVER['CONTENT_LENGTH']) && $_SERVER['CONTENT_LENGTH'] > 0) {
+            $this->setErrorMessage("فشل إرسال البيانات: قد يكون حجم الملف المرفوع (مثل تصميم الإعلان) أكبر من الحد الأقصى المسموح به على السيرفر.");
+            return false;
+        }
+
+        if ($token === null || !is_string($token) || empty($_SESSION['csrf_token'])) {
+            return false;
+        }
         return hash_equals($_SESSION['csrf_token'], $token);
     }
     

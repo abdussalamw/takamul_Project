@@ -13,8 +13,10 @@ $adminController->requirePermission('can_add_programs', 'manage_programs.php');
 // 2. POST Handling
 if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     // CSRF Token Validation
-    if (!$adminController->verifyCSRFToken($_POST['csrf_token'])) {
-        $adminController->setErrorMessage("فشل التحقق من الطلب (CSRF)، يرجى تحديث الصفحة والمحاولة مرة أخرى.");
+    if (!$adminController->verifyCSRFToken($_POST['csrf_token'] ?? null)) {
+        if (empty($_SESSION['error_message'])) {
+            $adminController->setErrorMessage("فشل التحقق من الطلب (CSRF)، يرجى تحديث الصفحة والمحاولة مرة أخرى.");
+        }
     } else {
         $ad_link_path = null;
         $error_message = null;

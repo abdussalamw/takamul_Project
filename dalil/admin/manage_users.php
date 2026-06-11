@@ -20,8 +20,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_permissions'])
     $response = [];
 
     // تحقق CSRF
-    if (!$adminController->verifyCSRFToken($_POST['csrf_token'])) {
-        $response = ['status' => 'error', 'message' => 'فشل التحقق من الطلب (CSRF).'];
+    if (!$adminController->verifyCSRFToken($_POST['csrf_token'] ?? null)) {
+        $response = ['status' => 'error', 'message' => $_SESSION['error_message'] ?? 'فشل التحقق من الطلب (CSRF).'];
     }
     // تحقق من معرف المستخدم
     elseif (!($user_id_to_update = filter_input(INPUT_POST, 'user_id', FILTER_VALIDATE_INT))) {
@@ -71,8 +71,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['change_user_password'
     $is_ajax = !empty($_SERVER['HTTP_X_REQUESTED_WITH']) && strtolower($_SERVER['HTTP_X_REQUESTED_WITH']) === 'xmlhttprequest';
     $response = [];
 
-    if (!$adminController->verifyCSRFToken($_POST['csrf_token'])) {
-        $response = ['status' => 'error', 'message' => 'فشل التحقق من الطلب (CSRF).'];
+    if (!$adminController->verifyCSRFToken($_POST['csrf_token'] ?? null)) {
+        $response = ['status' => 'error', 'message' => $_SESSION['error_message'] ?? 'فشل التحقق من الطلب (CSRF).'];
     }
     elseif (!($user_id_to_change = filter_input(INPUT_POST, 'user_id', FILTER_VALIDATE_INT))) {
         $response = ['status' => 'error', 'message' => 'معرف المستخدم غير صالح.'];

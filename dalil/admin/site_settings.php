@@ -37,8 +37,10 @@ function update_setting($pdo, $key, $value) {
 }
 
 if ($_SERVER['REQUEST_METHOD'] == 'POST') {
-    if (!$adminController->verifyCSRFToken($_POST['csrf_token'])) {
-        $adminController->setErrorMessage("فشل التحقق من الطلب (CSRF).");
+    if (!$adminController->verifyCSRFToken($_POST['csrf_token'] ?? null)) {
+        if (empty($_SESSION['error_message'])) {
+            $adminController->setErrorMessage("فشل التحقق من الطلب (CSRF).");
+        }
     } else {
         try {
             $current_settings = get_all_settings($pdo);

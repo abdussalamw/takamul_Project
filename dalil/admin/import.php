@@ -43,8 +43,10 @@ $temp_file = '';
 $default_organizer = '';
 
 if ($_SERVER['REQUEST_METHOD'] == 'POST') {
-    if (!$adminController->verifyCSRFToken($_POST['csrf_token'])) {
-        $adminController->setErrorMessage("فشل التحقق من الطلب (CSRF).");
+    if (!$adminController->verifyCSRFToken($_POST['csrf_token'] ?? null)) {
+        if (empty($_SESSION['error_message'])) {
+            $adminController->setErrorMessage("فشل التحقق من الطلب (CSRF).");
+        }
         $action = 'upload'; // Reset to upload
     } else {
         if ($action === 'preview') {

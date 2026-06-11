@@ -9,11 +9,12 @@ $adminController = new AdminController($pdo);
 $page_title = 'إدارة البرامج';
 $csrf_token = $adminController->csrf_token;
 
-// ========== معالجة طلبات POST (update_status / toggle_full_status) ==========
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     // التحقق من CSRF token
-    if (!isset($_POST['csrf_token']) || !$adminController->verifyCSRFToken($_POST['csrf_token'])) {
-        $adminController->setErrorMessage("فشل التحقق من الطلب (CSRF).");
+    if (!$adminController->verifyCSRFToken($_POST['csrf_token'] ?? null)) {
+        if (empty($_SESSION['error_message'])) {
+            $adminController->setErrorMessage("فشل التحقق من الطلب (CSRF).");
+        }
     } elseif (isset($_POST['update_status'])) {
         // معالجة تغيير الحالة (قبول/نشر/رفض)
         $program_id = filter_var($_POST['program_id'] ?? 0, FILTER_VALIDATE_INT);

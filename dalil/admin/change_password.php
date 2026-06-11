@@ -16,8 +16,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $error = null;
     $success = null;
 
-    if (!$adminController->verifyCSRFToken($_POST['csrf_token'])) {
-        $error = "فشل التحقق من الطلب (CSRF).";
+    if (!$adminController->verifyCSRFToken($_POST['csrf_token'] ?? null)) {
+        $error = $_SESSION['error_message'] ?? "فشل التحقق من الطلب (CSRF).";
     } else {
         $current_password = $_POST['current_password'];
         $new_password = $_POST['new_password'];

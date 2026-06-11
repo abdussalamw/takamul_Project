@@ -50,8 +50,10 @@ $age_group_other_val = !empty($other_age_values) ? implode(', ', $other_age_valu
 // Handle POST request for updating the program
 if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     // 1. CSRF Token Validation
-    if (!$adminController->verifyCSRFToken($_POST['csrf_token'])) {
-        $adminController->setErrorMessage("فشل التحقق من الطلب (CSRF)، يرجى تحديث الصفحة والمحاولة مرة أخرى.");
+    if (!$adminController->verifyCSRFToken($_POST['csrf_token'] ?? null)) {
+        if (empty($_SESSION['error_message'])) {
+            $adminController->setErrorMessage("فشل التحقق من الطلب (CSRF)، يرجى تحديث الصفحة والمحاولة مرة أخرى.");
+        }
     } else {
         $original_ad_link = $program['ad_link'];
         $new_ad_link_path = null;
