@@ -39,12 +39,12 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
         // --- Validate Data ---
         $field_translations = [
             'title' => 'عنوان البرنامج',
-            'organizer_id' => 'الجهة المنظمة',
+            'organizer_name' => 'الجهة المنظمة',
             'Direction' => 'المنطقة/الاتجاه',
             'venue_name' => 'مقر البرنامج',
             'start_date' => 'تاريخ البدء',
         ];
-        $required_fields = ['title', 'start_date', 'organizer_id', 'Direction', 'venue_name'];
+        $required_fields = ['title', 'start_date', 'organizer_name', 'Direction', 'venue_name'];
         $missing_fields = [];
         foreach ($required_fields as $field) {
             if (empty($_POST[$field])) {
@@ -52,17 +52,14 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             }
         }
         
-        $organizer_id = $_POST['organizer_id'] ?? '';
-        if (!empty($organizer_id)) {
-            if (empty(trim($_POST['organizer_name'] ?? ''))) {
-                $missing_fields[] = 'اسم الجهة';
-            }
-            if (empty(trim($_POST['entry_officer_name'] ?? ''))) {
-                $missing_fields[] = 'اسم مسؤولة التواصل';
-            }
-            if (empty(trim($_POST['entry_officer_phone'] ?? ''))) {
-                $missing_fields[] = 'رقم جوال مسؤول التواصل';
-            }
+        if (empty(trim($_POST['organizer_name'] ?? ''))) {
+            $missing_fields[] = 'اسم الجهة';
+        }
+        if (empty(trim($_POST['entry_officer_name'] ?? ''))) {
+            $missing_fields[] = 'اسم مسؤولة التواصل';
+        }
+        if (empty(trim($_POST['entry_officer_phone'] ?? ''))) {
+            $missing_fields[] = 'رقم جوال مسؤول التواصل';
         }
 
         if (empty($_POST['age_group']) && empty($_POST['age_group_other'])) {
@@ -124,29 +121,37 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             try {
                 $pdo->beginTransaction();
 
-                if ($organizer_id === 'new') {
-                    $stmtOrg = $pdo->prepare("INSERT INTO organizers (name, sub_name, communication_officer_name, communication_officer_phone) VALUES (?, ?, ?, ?)");
+                // Resolve organizer by name to prevent duplicates and allow direct text input
+                $org_name = trim($_POST['organizer_name'] ?? '');
+                $org_dept = trim($_POST['organizer_department'] ?? '');
+                $entry_name = trim($_POST['entry_officer_name'] ?? '');
+                
+                $stmtFind = $pdo->prepare("SELECT id FROM organizers WHERE LOWER(TRIM(name)) = LOWER(TRIM(?))");
+                $stmtFind->execute([$org_name]);
+                $existing_org_id = $stmtFind->fetchColumn();
+
+                if ($existing_org_id) {
+                    $resolved_organizer_id = $existing_org_id;
+                    $stmtOrg = $pdo->prepare("UPDATE organizers SET sub_name = ?, communication_officer_name = ?, communication_officer_phone = ? WHERE id = ?");
                     $stmtOrg->execute([
-                        trim($_POST['organizer_name']),
-                        trim($_POST['organizer_department'] ?? ''),
-                        trim($_POST['entry_officer_name'] ?? ''),
-                        $clean_phone
-                    ]);
-                    $resolved_organizer_id = $pdo->lastInsertId();
-                } else {
-                    $resolved_organizer_id = (int)$organizer_id;
-                    $stmtOrg = $pdo->prepare("UPDATE organizers SET name = ?, sub_name = ?, communication_officer_name = ?, communication_officer_phone = ? WHERE id = ?");
-                    $stmtOrg->execute([
-                        trim($_POST['organizer_name']),
-                        trim($_POST['organizer_department'] ?? ''),
-                        trim($_POST['entry_officer_name'] ?? ''),
+                        $org_dept,
+                        $entry_name,
                         $clean_phone,
                         $resolved_organizer_id
                     ]);
+                } else {
+                    $stmtOrg = $pdo->prepare("INSERT INTO organizers (name, sub_name, communication_officer_name, communication_officer_phone) VALUES (?, ?, ?, ?)");
+                    $stmtOrg->execute([
+                        $org_name,
+                        $org_dept,
+                        $entry_name,
+                        $clean_phone
+                    ]);
+                    $resolved_organizer_id = $pdo->lastInsertId();
                 }
 
                 $_POST['organizer_id'] = $resolved_organizer_id;
-                $_POST['organizer'] = trim($_POST['organizer_name']);
+                $_POST['organizer'] = $org_name;
 
                 $db_columns = [];
                 $placeholders = [];

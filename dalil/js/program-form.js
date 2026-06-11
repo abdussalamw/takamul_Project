@@ -6,65 +6,7 @@
 (function() {
     'use strict';
 
-    // ============================================================
-    // Organizer Select Logic
-    // ============================================================
-    function setupOrganizerSelector(organizersData) {
-        const orgSelect = document.getElementById('organizer_id');
-        if (!orgSelect) return;
-
-        const nameGroup = document.getElementById('organizer_name_group');
-        const phoneGroup = document.getElementById('entry_officer_phone_group');
-        const orgNameInput = document.getElementById('organizer_name');
-        const orgDeptInput = document.getElementById('organizer_department');
-        const entryNameInput = document.getElementById('entry_officer_name');
-        const entryPhoneInput = document.getElementById('entry_officer_phone');
-
-        function adjustLayout(val) {
-            // Both fields are now statically displayed and half-width to allow editing organizer names.
-            if (orgNameInput) {
-                orgNameInput.setAttribute('required', 'required');
-            }
-            if (nameGroup) {
-                nameGroup.style.display = 'block';
-            }
-        }
-
-        function populateOrganizerFields(val) {
-            if (val === 'new') {
-                orgNameInput.value = '';
-                if (orgDeptInput) orgDeptInput.value = '';
-                if (entryNameInput) entryNameInput.value = '';
-                if (entryPhoneInput) entryPhoneInput.value = '';
-            } else if (val !== '' && organizersData) {
-                const selectedOrg = organizersData.find(function(org) {
-                    return org.id == val;
-                });
-                if (selectedOrg) {
-                    orgNameInput.value = selectedOrg.name || '';
-                    if (orgDeptInput) orgDeptInput.value = selectedOrg.sub_name || selectedOrg.department || '';
-                    if (entryNameInput) entryNameInput.value = selectedOrg.communication_officer_name || selectedOrg.entry_officer_name || '';
-                    if (entryPhoneInput) entryPhoneInput.value = selectedOrg.communication_officer_phone || selectedOrg.entry_officer_phone || '';
-                }
-            } else {
-                orgNameInput.value = '';
-                if (orgDeptInput) orgDeptInput.value = '';
-                if (entryNameInput) entryNameInput.value = '';
-                if (entryPhoneInput) entryPhoneInput.value = '';
-            }
-        }
-
-        orgSelect.addEventListener('change', function() {
-            adjustLayout(this.value);
-            populateOrganizerFields(this.value);
-        });
-
-        // Initialize on page load
-        adjustLayout(orgSelect.value);
-        if (orgSelect.value && orgSelect.value !== 'new' && orgNameInput.value === '') {
-            populateOrganizerFields(orgSelect.value);
-        }
-    }
+    // Organizer Select Logic removed - organizer is now a simple text input.
 
     // ============================================================
     // Program Type Logic
@@ -169,9 +111,6 @@
         init: function(options) {
             options = options || {};
 
-            if (options.organizersData !== undefined) {
-                setupOrganizerSelector(options.organizersData);
-            }
 
             if (options.formId) {
                 setupFormValidation(options.formId);
