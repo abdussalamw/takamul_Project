@@ -1,8 +1,18 @@
 <?php
+// Load database configuration if available, otherwise fall back to local defaults
+$config_path = __DIR__ . '/db_config.php';
+if (file_exists($config_path)) {
+    require_once $config_path;
+} else {
+    define('DB_HOST', 'localhost');
+    define('DB_NAME', 'takamul_2026');
+    define('DB_USER', 'root');
+    define('DB_PASS', '');
+    define('DB_ENVIRONMENT', 'development');
+}
+
 // --- Production vs. Development Environment ---
-// Set this to 'development' to see detailed errors.
-// Set this to 'production' to hide detailed errors for security.
-define('ENVIRONMENT', 'development'); 
+define('ENVIRONMENT', DB_ENVIRONMENT); 
 
 if (ENVIRONMENT === 'development') {
     ini_set('display_errors', 1);
@@ -16,18 +26,19 @@ if (ENVIRONMENT === 'development') {
 
 header('Content-Type: text/html; charset=utf-8');
 
-$host = 'localhost';
-$db = 'takamul_2026';
-$user = 'root';
-$pass = '';
+$host = DB_HOST;
+$db = DB_NAME;
+$user = DB_USER;
+$pass = DB_PASS;
 
 try {
     $pdo = new PDO("mysql:host=$host;dbname=$db;charset=utf8mb4", $user, $pass);
     $pdo->exec("SET NAMES utf8mb4");
     $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
 } catch (PDOException $e) {
-    // On production, log the error and show a generic message.
-    // error_log("Database Connection Failed: " . $e->getMessage());
+    if (ENVIRONMENT === 'development') {
+        die("Database Connection Failed: " . $e->getMessage());
+    }
     die("عذراً، حدث خطأ أثناء الاتصال بالنظام. يرجى المحاولة لاحقاً.");
 }
 

@@ -21,3 +21,7 @@ dalil/99.htaccess.bak
 .vscode/
 .DS_Store
 Thumbs.db
+
+# Database local configurations
+dalil/includes/db_config.php
+dalil_full_build/dalil/includes/db_config.php
