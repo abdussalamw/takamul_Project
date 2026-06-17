@@ -1,0 +1,216 @@
+[2026-06-17 20:19:48] IP: ::1 | URL: /Dalil/dalil/admin/import.php | Content Length: 35976
+  POST Token: 'fdfa4bba9a896b8db83ce3c5d7ddf26070c978c135eaf9082178c1ad4a99d15e'
+  SESSION Token: 'fdfa4bba9a896b8db83ce3c5d7ddf26070c978c135eaf9082178c1ad4a99d15e'
+  POST Keys: action, csrf_token, default_organizer
+  SESSION Keys: admin_id, username, permissions, csrf_token
+
+[2026-06-17 20:19:52] IP: ::1 | URL: /Dalil/dalil/admin/import.php | Content Length: 859
+  POST Token: 'fdfa4bba9a896b8db83ce3c5d7ddf26070c978c135eaf9082178c1ad4a99d15e'
+  SESSION Token: 'fdfa4bba9a896b8db83ce3c5d7ddf26070c978c135eaf9082178c1ad4a99d15e'
+  POST Keys: csrf_token, temp_file, default_organizer, selected_rows, action
+  SESSION Keys: admin_id, username, permissions, csrf_token
+
+[2026-06-17 20:21:05] IP: ::1 | URL: /Dalil/dalil/admin/import.php | Content Length: 859
+  POST Token: 'fdfa4bba9a896b8db83ce3c5d7ddf26070c978c135eaf9082178c1ad4a99d15e'
+  SESSION Token: 'fdfa4bba9a896b8db83ce3c5d7ddf26070c978c135eaf9082178c1ad4a99d15e'
+  POST Keys: csrf_token, temp_file, default_organizer, selected_rows, action
+  SESSION Keys: admin_id, username, permissions, csrf_token
+
+[2026-06-17 20:21:05] IP: ::1 | URL: /Dalil/dalil/admin/import.php | Content Length: 859
+  POST Token: 'fdfa4bba9a896b8db83ce3c5d7ddf26070c978c135eaf9082178c1ad4a99d15e'
+  SESSION Token: 'fdfa4bba9a896b8db83ce3c5d7ddf26070c978c135eaf9082178c1ad4a99d15e'
+  POST Keys: csrf_token, temp_file, default_organizer, selected_rows, action
+  SESSION Keys: admin_id, username, permissions, csrf_token
+
+[2026-06-17 20:21:05] IP: ::1 | URL: /Dalil/dalil/admin/import.php | Content Length: 35976
+  POST Token: 'fdfa4bba9a896b8db83ce3c5d7ddf26070c978c135eaf9082178c1ad4a99d15e'
+  SESSION Token: 'fdfa4bba9a896b8db83ce3c5d7ddf26070c978c135eaf9082178c1ad4a99d15e'
+  POST Keys: action, csrf_token, default_organizer
+  SESSION Keys: admin_id, username, permissions, csrf_token
+
+[2026-06-17 20:21:11] IP: ::1 | URL: /Dalil/dalil/admin/manage_programs.php | Content Length: 147
+  POST Token: 'fdfa4bba9a896b8db83ce3c5d7ddf26070c978c135eaf9082178c1ad4a99d15e'
+  SESSION Token: 'fdfa4bba9a896b8db83ce3c5d7ddf26070c978c135eaf9082178c1ad4a99d15e'
+  POST Keys: csrf_token, program_id, new_status, action_source, update_status
+  SESSION Keys: admin_id, username, permissions, csrf_token
+
+[2026-06-17 20:21:12] IP: ::1 | URL: /Dalil/dalil/admin/manage_programs.php | Content Length: 147
+  POST Token: 'fdfa4bba9a896b8db83ce3c5d7ddf26070c978c135eaf9082178c1ad4a99d15e'
+  SESSION Token: 'fdfa4bba9a896b8db83ce3c5d7ddf26070c978c135eaf9082178c1ad4a99d15e'
+  POST Keys: csrf_token, program_id, new_status, action_source, update_status
+  SESSION Keys: admin_id, username, permissions, csrf_token
+
+[2026-06-17 20:21:13] IP: ::1 | URL: /Dalil/dalil/admin/manage_programs.php | Content Length: 147
+  POST Token: 'fdfa4bba9a896b8db83ce3c5d7ddf26070c978c135eaf9082178c1ad4a99d15e'
+  SESSION Token: 'fdfa4bba9a896b8db83ce3c5d7ddf26070c978c135eaf9082178c1ad4a99d15e'
+  POST Keys: csrf_token, program_id, new_status, action_source, update_status
+  SESSION Keys: admin_id, username, permissions, csrf_token
+
+[2026-06-17 20:21:14] IP: ::1 | URL: /Dalil/dalil/admin/manage_programs.php | Content Length: 147
+  POST Token: 'fdfa4bba9a896b8db83ce3c5d7ddf26070c978c135eaf9082178c1ad4a99d15e'
+  SESSION Token: 'fdfa4bba9a896b8db83ce3c5d7ddf26070c978c135eaf9082178c1ad4a99d15e'
+  POST Keys: csrf_token, program_id, new_status, action_source, update_status
+  SESSION Keys: admin_id, username, permissions, csrf_token
+
+[2026-06-17 20:21:15] IP: ::1 | URL: /Dalil/dalil/admin/manage_programs.php | Content Length: 147
+  POST Token: 'fdfa4bba9a896b8db83ce3c5d7ddf26070c978c135eaf9082178c1ad4a99d15e'
+  SESSION Token: 'fdfa4bba9a896b8db83ce3c5d7ddf26070c978c135eaf9082178c1ad4a99d15e'
+  POST Keys: csrf_token, program_id, new_status, action_source, update_status
+  SESSION Keys: admin_id, username, permissions, csrf_token
+
+[2026-06-17 20:21:16] IP: ::1 | URL: /Dalil/dalil/admin/manage_programs.php | Content Length: 147
+  POST Token: 'fdfa4bba9a896b8db83ce3c5d7ddf26070c978c135eaf9082178c1ad4a99d15e'
+  SESSION Token: 'fdfa4bba9a896b8db83ce3c5d7ddf26070c978c135eaf9082178c1ad4a99d15e'
+  POST Keys: csrf_token, program_id, new_status, action_source, update_status
+  SESSION Keys: admin_id, username, permissions, csrf_token
+
+[2026-06-17 20:21:18] IP: ::1 | URL: /Dalil/dalil/admin/manage_programs.php | Content Length: 147
+  POST Token: 'fdfa4bba9a896b8db83ce3c5d7ddf26070c978c135eaf9082178c1ad4a99d15e'
+  SESSION Token: 'fdfa4bba9a896b8db83ce3c5d7ddf26070c978c135eaf9082178c1ad4a99d15e'
+  POST Keys: csrf_token, program_id, new_status, action_source, update_status
+  SESSION Keys: admin_id, username, permissions, csrf_token
+
+[2026-06-17 20:21:19] IP: ::1 | URL: /Dalil/dalil/admin/manage_programs.php | Content Length: 147
+  POST Token: 'fdfa4bba9a896b8db83ce3c5d7ddf26070c978c135eaf9082178c1ad4a99d15e'
+  SESSION Token: 'fdfa4bba9a896b8db83ce3c5d7ddf26070c978c135eaf9082178c1ad4a99d15e'
+  POST Keys: csrf_token, program_id, new_status, action_source, update_status
+  SESSION Keys: admin_id, username, permissions, csrf_token
+
+[2026-06-17 20:21:21] IP: ::1 | URL: /Dalil/dalil/admin/manage_programs.php | Content Length: 147
+  POST Token: 'fdfa4bba9a896b8db83ce3c5d7ddf26070c978c135eaf9082178c1ad4a99d15e'
+  SESSION Token: 'fdfa4bba9a896b8db83ce3c5d7ddf26070c978c135eaf9082178c1ad4a99d15e'
+  POST Keys: csrf_token, program_id, new_status, action_source, update_status
+  SESSION Keys: admin_id, username, permissions, csrf_token
+
+[2026-06-17 20:21:22] IP: ::1 | URL: /Dalil/dalil/admin/manage_programs.php | Content Length: 147
+  POST Token: 'fdfa4bba9a896b8db83ce3c5d7ddf26070c978c135eaf9082178c1ad4a99d15e'
+  SESSION Token: 'fdfa4bba9a896b8db83ce3c5d7ddf26070c978c135eaf9082178c1ad4a99d15e'
+  POST Keys: csrf_token, program_id, new_status, action_source, update_status
+  SESSION Keys: admin_id, username, permissions, csrf_token
+
+[2026-06-17 20:21:24] IP: ::1 | URL: /Dalil/dalil/admin/manage_programs.php | Content Length: 147
+  POST Token: 'fdfa4bba9a896b8db83ce3c5d7ddf26070c978c135eaf9082178c1ad4a99d15e'
+  SESSION Token: 'fdfa4bba9a896b8db83ce3c5d7ddf26070c978c135eaf9082178c1ad4a99d15e'
+  POST Keys: csrf_token, program_id, new_status, action_source, update_status
+  SESSION Keys: admin_id, username, permissions, csrf_token
+
+[2026-06-17 20:21:25] IP: ::1 | URL: /Dalil/dalil/admin/manage_programs.php | Content Length: 147
+  POST Token: 'fdfa4bba9a896b8db83ce3c5d7ddf26070c978c135eaf9082178c1ad4a99d15e'
+  SESSION Token: 'fdfa4bba9a896b8db83ce3c5d7ddf26070c978c135eaf9082178c1ad4a99d15e'
+  POST Keys: csrf_token, program_id, new_status, action_source, update_status
+  SESSION Keys: admin_id, username, permissions, csrf_token
+
+[2026-06-17 20:22:03] IP: ::1 | URL: /Dalil/dalil/admin/manage_programs.php | Content Length: 147
+  POST Token: 'fdfa4bba9a896b8db83ce3c5d7ddf26070c978c135eaf9082178c1ad4a99d15e'
+  SESSION Token: 'fdfa4bba9a896b8db83ce3c5d7ddf26070c978c135eaf9082178c1ad4a99d15e'
+  POST Keys: csrf_token, program_id, new_status, action_source, update_status
+  SESSION Keys: admin_id, username, permissions, csrf_token
+
+[2026-06-17 20:22:05] IP: ::1 | URL: /Dalil/dalil/admin/manage_programs.php | Content Length: 147
+  POST Token: 'fdfa4bba9a896b8db83ce3c5d7ddf26070c978c135eaf9082178c1ad4a99d15e'
+  SESSION Token: 'fdfa4bba9a896b8db83ce3c5d7ddf26070c978c135eaf9082178c1ad4a99d15e'
+  POST Keys: csrf_token, program_id, new_status, action_source, update_status
+  SESSION Keys: admin_id, username, permissions, csrf_token
+
+[2026-06-17 20:22:06] IP: ::1 | URL: /Dalil/dalil/admin/manage_programs.php | Content Length: 147
+  POST Token: 'fdfa4bba9a896b8db83ce3c5d7ddf26070c978c135eaf9082178c1ad4a99d15e'
+  SESSION Token: 'fdfa4bba9a896b8db83ce3c5d7ddf26070c978c135eaf9082178c1ad4a99d15e'
+  POST Keys: csrf_token, program_id, new_status, action_source, update_status
+  SESSION Keys: admin_id, username, permissions, csrf_token
+
+[2026-06-17 20:22:09] IP: ::1 | URL: /Dalil/dalil/admin/manage_programs.php | Content Length: 147
+  POST Token: 'fdfa4bba9a896b8db83ce3c5d7ddf26070c978c135eaf9082178c1ad4a99d15e'
+  SESSION Token: 'fdfa4bba9a896b8db83ce3c5d7ddf26070c978c135eaf9082178c1ad4a99d15e'
+  POST Keys: csrf_token, program_id, new_status, action_source, update_status
+  SESSION Keys: admin_id, username, permissions, csrf_token
+
+[2026-06-17 20:22:11] IP: ::1 | URL: /Dalil/dalil/admin/manage_programs.php | Content Length: 147
+  POST Token: 'fdfa4bba9a896b8db83ce3c5d7ddf26070c978c135eaf9082178c1ad4a99d15e'
+  SESSION Token: 'fdfa4bba9a896b8db83ce3c5d7ddf26070c978c135eaf9082178c1ad4a99d15e'
+  POST Keys: csrf_token, program_id, new_status, action_source, update_status
+  SESSION Keys: admin_id, username, permissions, csrf_token
+
+[2026-06-17 20:22:14] IP: ::1 | URL: /Dalil/dalil/admin/manage_programs.php | Content Length: 147
+  POST Token: 'fdfa4bba9a896b8db83ce3c5d7ddf26070c978c135eaf9082178c1ad4a99d15e'
+  SESSION Token: 'fdfa4bba9a896b8db83ce3c5d7ddf26070c978c135eaf9082178c1ad4a99d15e'
+  POST Keys: csrf_token, program_id, new_status, action_source, update_status
+  SESSION Keys: admin_id, username, permissions, csrf_token
+
+[2026-06-17 20:22:16] IP: ::1 | URL: /Dalil/dalil/admin/manage_programs.php | Content Length: 147
+  POST Token: 'fdfa4bba9a896b8db83ce3c5d7ddf26070c978c135eaf9082178c1ad4a99d15e'
+  SESSION Token: 'fdfa4bba9a896b8db83ce3c5d7ddf26070c978c135eaf9082178c1ad4a99d15e'
+  POST Keys: csrf_token, program_id, new_status, action_source, update_status
+  SESSION Keys: admin_id, username, permissions, csrf_token
+
+[2026-06-17 20:22:18] IP: ::1 | URL: /Dalil/dalil/admin/manage_programs.php | Content Length: 146
+  POST Token: 'fdfa4bba9a896b8db83ce3c5d7ddf26070c978c135eaf9082178c1ad4a99d15e'
+  SESSION Token: 'fdfa4bba9a896b8db83ce3c5d7ddf26070c978c135eaf9082178c1ad4a99d15e'
+  POST Keys: csrf_token, program_id, new_status, action_source, update_status
+  SESSION Keys: admin_id, username, permissions, csrf_token
+
+[2026-06-17 20:22:20] IP: ::1 | URL: /Dalil/dalil/admin/manage_programs.php | Content Length: 146
+  POST Token: 'fdfa4bba9a896b8db83ce3c5d7ddf26070c978c135eaf9082178c1ad4a99d15e'
+  SESSION Token: 'fdfa4bba9a896b8db83ce3c5d7ddf26070c978c135eaf9082178c1ad4a99d15e'
+  POST Keys: csrf_token, program_id, new_status, action_source, update_status
+  SESSION Keys: admin_id, username, permissions, csrf_token
+
+[2026-06-17 20:22:22] IP: ::1 | URL: /Dalil/dalil/admin/manage_programs.php | Content Length: 146
+  POST Token: 'fdfa4bba9a896b8db83ce3c5d7ddf26070c978c135eaf9082178c1ad4a99d15e'
+  SESSION Token: 'fdfa4bba9a896b8db83ce3c5d7ddf26070c978c135eaf9082178c1ad4a99d15e'
+  POST Keys: csrf_token, program_id, new_status, action_source, update_status
+  SESSION Keys: admin_id, username, permissions, csrf_token
+
+[2026-06-17 20:22:24] IP: ::1 | URL: /Dalil/dalil/admin/manage_programs.php | Content Length: 147
+  POST Token: 'fdfa4bba9a896b8db83ce3c5d7ddf26070c978c135eaf9082178c1ad4a99d15e'
+  SESSION Token: 'fdfa4bba9a896b8db83ce3c5d7ddf26070c978c135eaf9082178c1ad4a99d15e'
+  POST Keys: csrf_token, program_id, new_status, action_source, update_status
+  SESSION Keys: admin_id, username, permissions, csrf_token
+
+[2026-06-17 20:22:27] IP: ::1 | URL: /Dalil/dalil/admin/manage_programs.php | Content Length: 147
+  POST Token: 'fdfa4bba9a896b8db83ce3c5d7ddf26070c978c135eaf9082178c1ad4a99d15e'
+  SESSION Token: 'fdfa4bba9a896b8db83ce3c5d7ddf26070c978c135eaf9082178c1ad4a99d15e'
+  POST Keys: csrf_token, program_id, new_status, action_source, update_status
+  SESSION Keys: admin_id, username, permissions, csrf_token
+
+[2026-06-17 20:22:30] IP: ::1 | URL: /Dalil/dalil/admin/manage_programs.php | Content Length: 146
+  POST Token: 'fdfa4bba9a896b8db83ce3c5d7ddf26070c978c135eaf9082178c1ad4a99d15e'
+  SESSION Token: 'fdfa4bba9a896b8db83ce3c5d7ddf26070c978c135eaf9082178c1ad4a99d15e'
+  POST Keys: csrf_token, program_id, new_status, action_source, update_status
+  SESSION Keys: admin_id, username, permissions, csrf_token
+
+[2026-06-17 20:22:32] IP: ::1 | URL: /Dalil/dalil/admin/manage_programs.php | Content Length: 147
+  POST Token: 'fdfa4bba9a896b8db83ce3c5d7ddf26070c978c135eaf9082178c1ad4a99d15e'
+  SESSION Token: 'fdfa4bba9a896b8db83ce3c5d7ddf26070c978c135eaf9082178c1ad4a99d15e'
+  POST Keys: csrf_token, program_id, new_status, action_source, update_status
+  SESSION Keys: admin_id, username, permissions, csrf_token
+
+[2026-06-17 20:22:35] IP: ::1 | URL: /Dalil/dalil/admin/manage_programs.php | Content Length: 147
+  POST Token: 'fdfa4bba9a896b8db83ce3c5d7ddf26070c978c135eaf9082178c1ad4a99d15e'
+  SESSION Token: 'fdfa4bba9a896b8db83ce3c5d7ddf26070c978c135eaf9082178c1ad4a99d15e'
+  POST Keys: csrf_token, program_id, new_status, action_source, update_status
+  SESSION Keys: admin_id, username, permissions, csrf_token
+
+[2026-06-17 20:22:38] IP: ::1 | URL: /Dalil/dalil/admin/manage_programs.php | Content Length: 147
+  POST Token: 'fdfa4bba9a896b8db83ce3c5d7ddf26070c978c135eaf9082178c1ad4a99d15e'
+  SESSION Token: 'fdfa4bba9a896b8db83ce3c5d7ddf26070c978c135eaf9082178c1ad4a99d15e'
+  POST Keys: csrf_token, program_id, new_status, action_source, update_status
+  SESSION Keys: admin_id, username, permissions, csrf_token
+
+[2026-06-17 20:22:41] IP: ::1 | URL: /Dalil/dalil/admin/manage_programs.php | Content Length: 147
+  POST Token: 'fdfa4bba9a896b8db83ce3c5d7ddf26070c978c135eaf9082178c1ad4a99d15e'
+  SESSION Token: 'fdfa4bba9a896b8db83ce3c5d7ddf26070c978c135eaf9082178c1ad4a99d15e'
+  POST Keys: csrf_token, program_id, new_status, action_source, update_status
+  SESSION Keys: admin_id, username, permissions, csrf_token
+
+[2026-06-17 20:22:43] IP: ::1 | URL: /Dalil/dalil/admin/manage_programs.php | Content Length: 147
+  POST Token: 'fdfa4bba9a896b8db83ce3c5d7ddf26070c978c135eaf9082178c1ad4a99d15e'
+  SESSION Token: 'fdfa4bba9a896b8db83ce3c5d7ddf26070c978c135eaf9082178c1ad4a99d15e'
+  POST Keys: csrf_token, program_id, new_status, action_source, update_status
+  SESSION Keys: admin_id, username, permissions, csrf_token
+
+[2026-06-17 20:29:29] IP: ::1 | URL: /Dalil/dalil/admin/edit_program.php?id=32 | Content Length: 3285
+  POST Token: 'fdfa4bba9a896b8db83ce3c5d7ddf26070c978c135eaf9082178c1ad4a99d15e'
+  SESSION Token: 'fdfa4bba9a896b8db83ce3c5d7ddf26070c978c135eaf9082178c1ad4a99d15e'
+  POST Keys: csrf_token, organizer_name, organizer_department, entry_officer_name, entry_officer_phone, title, program_type, program_type_other, attendance_type, venue_name, location, Direction, age_group_other, target_notes, description, start_date, end_date, duration, google_map, is_free, price, price_notes, registration_link, program_notes
+  SESSION Keys: admin_id, username, permissions, csrf_token
+

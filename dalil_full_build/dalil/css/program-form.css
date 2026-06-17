@@ -1,0 +1,460 @@
+/* ============================================================
+   Program Form Styles - Shared across public & admin forms
+   Matches admin_style.css glassmorphism theme with 3-column grid
+   ============================================================ */
+
+/* Inherit admin theme variables */
+:root {
+    --primary: #6366f1;
+    --primary-light: #818cf8;
+    --primary-dark: #4f46e5;
+    --primary-gradient: linear-gradient(135deg, #6366f1, #8b5cf6);
+    --secondary: #f43f5e;
+    --secondary-hover: #e11d48;
+    --accent: #14b8a6;
+    --accent-light: #2dd4bf;
+    --accent-gradient: linear-gradient(135deg, #14b8a6, #06b6d4);
+    
+    --bg-main: #f8fafc;
+    --bg-card: rgba(255, 255, 255, 0.75);
+    --border-glass: rgba(255, 255, 255, 0.6);
+    --border-subtle: rgba(229, 231, 235, 0.6);
+    
+    --text-main: #1e293b;
+    --text-muted: #64748b;
+    --text-light: #94a3b8;
+    
+    --success: #10b981;
+    --warning: #f59e0b;
+    --danger: #ef4444;
+    --info: #3b82f6;
+    
+    --radius-sm: 8px;
+    --radius-md: 12px;
+    --radius-lg: 18px;
+    --radius-full: 9999px;
+    
+    --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.05);
+    --shadow-md: 0 10px 25px -5px rgba(0, 0, 0, 0.05), 0 8px 10px -6px rgba(0, 0, 0, 0.05);
+    --shadow-lg: 0 20px 40px -10px rgba(99, 102, 241, 0.05), 0 10px 25px -10px rgba(0, 0, 0, 0.03);
+    --shadow-glow: 0 4px 20px rgba(99, 102, 241, 0.15);
+    
+    --transition-smooth: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* ========== SECTION: Form Container ========== */
+.program-form-section {
+    max-width: 780px;
+    width: 94%;
+    margin: 20px auto;
+    padding: 0;
+}
+
+.program-form-card {
+    background: var(--bg-card);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border: 1px solid var(--border-glass);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-md);
+    padding: 35px 40px;
+    transition: var(--transition-smooth);
+}
+
+.program-form-card h2 {
+    color: var(--primary);
+    font-size: 1.4rem;
+    margin-bottom: 1.5rem;
+    position: relative;
+    padding-bottom: 12px;
+    border-bottom: 1px solid var(--border-subtle);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    text-align: right;
+}
+
+/* ========== SECTION: Messages ========== */
+.form-message {
+    padding: 14px 20px;
+    margin-bottom: 20px;
+    border-radius: var(--radius-md);
+    font-weight: 700;
+    text-align: center;
+    box-shadow: var(--shadow-sm);
+    animation: slideDown 0.3s ease-out;
+}
+
+@keyframes slideDown {
+    from { transform: translateY(-10px); opacity: 0; }
+    to { transform: translateY(0); opacity: 1; }
+}
+
+.form-message.success {
+    background-color: rgba(16, 185, 129, 0.1);
+    color: var(--success);
+    border: 1px solid rgba(16, 185, 129, 0.2);
+}
+
+.form-message.error {
+    background-color: rgba(239, 68, 68, 0.1);
+    color: var(--danger);
+    border: 1px solid rgba(239, 68, 68, 0.2);
+}
+
+.form-message.info {
+    background-color: rgba(59, 130, 246, 0.1);
+    color: var(--info);
+    border: 1px solid rgba(59, 130, 246, 0.2);
+}
+
+/* ========== SECTION: Form Layout - 3 Column Grid ========== */
+.program-form {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 22px 28px;
+}
+
+@media (min-width: 1200px) {
+    .program-form {
+        grid-template-columns: repeat(3, 1fr);
+    }
+    
+    .form-group.full-width,
+    .form-section-header,
+    .form-actions-container {
+        grid-column: 1 / -1;
+    }
+}
+
+@media (max-width: 1199px) and (min-width: 768px) {
+    .program-form {
+        grid-template-columns: repeat(2, 1fr);
+    }
+    
+    .form-group.full-width,
+    .form-section-header,
+    .form-actions-container {
+        grid-column: span 2;
+    }
+}
+
+@media (max-width: 767px) {
+    .program-form {
+        grid-template-columns: 1fr;
+    }
+    
+    .form-group.full-width,
+    .form-section-header,
+    .form-actions-container {
+        grid-column: span 1;
+    }
+}
+
+/* ========== SECTION: Form Groups ========== */
+.form-group {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    text-align: right;
+}
+
+.form-group label {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 0.95rem;
+    font-weight: 700;
+    color: var(--text-main);
+}
+
+.form-group i {
+    color: var(--primary);
+}
+
+.form-group .required-asterisk {
+    color: var(--secondary);
+}
+
+/* ========== SECTION: Inputs ========== */
+.program-form input[type="text"],
+.program-form input[type="url"],
+.program-form input[type="tel"],
+.program-form input[type="number"],
+.program-form input[type="email"],
+.program-form textarea,
+.program-form select {
+    width: 100%;
+    padding: 12px 16px;
+    border: 1px solid var(--border-subtle);
+    background: rgba(255, 255, 255, 0.9);
+    border-radius: var(--radius-md);
+    font-size: 0.95rem;
+    outline: none;
+    font-family: 'Tajawal', sans-serif;
+    color: var(--text-main);
+    transition: var(--transition-smooth);
+    box-sizing: border-box;
+}
+
+.program-form input:focus,
+.program-form textarea:focus,
+.program-form select:focus {
+    border-color: var(--primary);
+    background: white;
+    box-shadow: 0 0 0 4px rgba(99, 102, 241, 0.12);
+}
+
+.program-form textarea {
+    resize: vertical;
+    min-height: 120px;
+}
+
+.program-form input[type="file"] {
+    padding: 10px;
+    border: 2px dashed var(--border-subtle);
+    border-radius: var(--radius-md);
+    width: 100%;
+    box-sizing: border-box;
+    cursor: pointer;
+    background: rgba(255, 255, 255, 0.5);
+}
+
+.program-form input[type="file"]:hover {
+    border-color: var(--primary);
+    background: rgba(99, 102, 241, 0.03);
+}
+
+.program-form input[readonly] {
+    background-color: rgba(249, 250, 251, 0.8);
+    cursor: pointer;
+}
+
+/* ========== SECTION: Checkboxes Group ========== */
+.checkbox-group {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 5px;
+}
+
+.checkbox-group label {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    cursor: pointer;
+    font-weight: 500;
+    margin: 0;
+    padding: 8px 12px;
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--radius-sm);
+    transition: var(--transition-smooth);
+    font-size: 0.9rem;
+}
+
+.checkbox-group label:hover {
+    border-color: var(--primary);
+    background: rgba(99, 102, 241, 0.05);
+}
+
+.checkbox-group label:has(input:checked) {
+    border-color: var(--primary);
+    background: rgba(99, 102, 241, 0.08);
+    color: var(--primary);
+}
+
+.checkbox-group input[type="checkbox"] {
+    width: 18px;
+    height: 18px;
+    accent-color: var(--primary);
+}
+
+/* ========== SECTION: Section Headers ========== */
+.form-section-header {
+    border-bottom: 2px solid var(--primary-light);
+    padding-bottom: 10px;
+    margin-bottom: 5px;
+    margin-top: 10px;
+}
+
+.form-section-header h3 {
+    color: var(--text-main);
+    font-size: 1.15rem;
+    font-weight: 800;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.form-section-header h3 i {
+    color: var(--primary);
+}
+
+/* ========== SECTION: File Preview ========== */
+.current-ad-preview {
+    margin-bottom: 10px;
+    padding: 10px;
+    background: rgba(99, 102, 241, 0.04);
+    border-radius: var(--radius-sm);
+    border: 1px solid rgba(99, 102, 241, 0.1);
+}
+
+.current-ad-preview span {
+    font-weight: 500;
+    color: var(--text-main);
+    font-size: 0.9rem;
+}
+
+.current-ad-preview img {
+    max-width: 80px;
+    max-height: 80px;
+    border-radius: var(--radius-sm);
+    vertical-align: middle;
+    margin-right: 10px;
+}
+
+.current-ad-preview a {
+    color: var(--primary);
+    text-decoration: none;
+}
+
+.current-ad-preview a:hover {
+    text-decoration: underline;
+}
+
+/* ========== SECTION: Buttons ========== */
+.form-actions-container {
+    display: flex;
+    justify-content: flex-start;
+    gap: 15px;
+    margin-top: 20px;
+    padding-top: 20px;
+    border-top: 1px solid var(--border-subtle);
+    flex-wrap: wrap;
+}
+
+.submit-btn,
+.add-program-btn,
+.edit-program-btn {
+    background: var(--primary-gradient);
+    color: white;
+    border: none;
+    padding: 12px 24px;
+    border-radius: var(--radius-md);
+    font-size: 0.95rem;
+    font-weight: 700;
+    cursor: pointer;
+    transition: var(--transition-smooth);
+    font-family: 'Tajawal', sans-serif;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    box-shadow: var(--shadow-sm);
+}
+
+.submit-btn:hover,
+.add-program-btn:hover,
+.edit-program-btn:hover {
+    background: linear-gradient(135deg, #4f46e5, #7c3aed);
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-glow);
+}
+
+.submit-btn:disabled,
+.add-program-btn:disabled,
+.edit-program-btn:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+    transform: none;
+}
+
+.back-btn-inline {
+    color: var(--text-muted);
+    text-decoration: none;
+    font-weight: 700;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 20px;
+    border-radius: var(--radius-md);
+    border: 1px solid var(--border-subtle);
+    background: white;
+    transition: var(--transition-smooth);
+    box-shadow: var(--shadow-sm);
+    font-size: 0.95rem;
+}
+
+.back-btn-inline:hover {
+    background: #f1f5f9;
+    color: var(--text-main);
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-md);
+}
+
+.back-link {
+    display: block;
+    text-align: center;
+    margin-top: 20px;
+    color: var(--primary);
+    text-decoration: none;
+    font-weight: 600;
+}
+
+.back-link:hover {
+    opacity: 0.8;
+}
+
+/* ========== SECTION: Inline form note ========== */
+.form-note {
+    display: block;
+    margin-top: 5px;
+    font-size: 0.85rem;
+    color: var(--text-muted);
+}
+
+.form-note.warning {
+    color: #856404;
+}
+
+/* ========== SECTION: Admin page adjustments ========== */
+.admin-page .program-form-section {
+    margin: 0 auto;
+}
+
+.admin-page .program-form-card {
+    border-radius: var(--radius-lg);
+}
+
+/* ========== SECTION: Public page (submit_program.php) ========== */
+.public-page .program-form-section {
+    max-width: 780px;
+}
+
+.public-page .program-form-card h2 {
+    text-align: center;
+    justify-content: center;
+}
+
+.public-page .program-form-card h2::after {
+    display: none;
+}
+
+.public-page .back-link {
+    margin-top: 25px;
+}
+
+/* Header in submit_program.php */
+.public-page .program-form {
+    gap: 16px 20px;
+}
+
+.public-page .form-section-header {
+    margin-top: 5px;
+    margin-bottom: 0;
+}
+
+/* ========== SECTION: Helpers ========== */
+.text-center { text-align: center; }
+.text-right { text-align: right; }
+.mt-10 { margin-top: 10px; }
+.mb-10 { margin-bottom: 10px; }
