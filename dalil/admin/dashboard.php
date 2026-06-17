@@ -7,6 +7,30 @@ include_once 'AdminController.php';
 
 // Initialize controller and render header
 $adminController = new AdminController($pdo);
+
+// Check for missing coordinates and handle fixing them
+$missing_coords_count = $pdo->query("SELECT COUNT(*) FROM programs WHERE google_map IS NOT NULL AND google_map != '' AND (latitude IS NULL OR longitude IS NULL)")->fetchColumn();
+
+if (isset($_GET['fix_coordinates'])) {
+    if (!$adminController->verifyCSRFToken($_GET['csrf_token'] ?? null)) {
+        $adminController->setErrorMessage("فشل التحقق من الطلب (CSRF).");
+    } else {
+        $stmt = $pdo->query("SELECT id, google_map FROM programs WHERE google_map IS NOT NULL AND google_map != '' AND (latitude IS NULL OR longitude IS NULL)");
+        $fixed_count = 0;
+        while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
+            $coords = get_coords_from_google_maps($row['google_map']);
+            if ($coords) {
+                $update_stmt = $pdo->prepare("UPDATE programs SET latitude = ?, longitude = ? WHERE id = ?");
+                $update_stmt->execute([$coords['lat'], $coords['lng'], $row['id']]);
+                $fixed_count++;
+            }
+        }
+        $adminController->setSuccessMessage("تم استخراج وتحديث إحداثيات $fixed_count برامج بنجاح. 🎉");
+        header("Location: dashboard.php");
+        exit;
+    }
+}
+
 $page_title = 'لوحة التحكم الرئيسية';
 $adminController->renderHeader($page_title);
 $adminController->renderMessages();
@@ -79,6 +103,18 @@ try {
 ?>
 
 <section class="dashboard-section">
+    <?php if ($missing_coords_count > 0): ?>
+        <div class="message warning" style="background-color: #fff9e6; border-right: 4px solid #f59e0b; padding: 15px; border-radius: 8px; margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center; border-left: 1px solid #ffeeba; border-top: 1px solid #ffeeba; border-bottom: 1px solid #ffeeba; box-shadow: 0 2px 5px rgba(0,0,0,0.02);">
+            <div style="color: #856404; font-size: 0.95rem;">
+                <i class="fas fa-exclamation-triangle" style="color: #f59e0b; margin-left: 10px;"></i>
+                هناك <strong><?php echo $missing_coords_count; ?></strong> برنامج تم إدخال رابط خرائط جوجل ماب لها ولكن لم يتم استخراج إحداثياتها بعد (لن تظهر بشكل دقيق على الخريطة التفاعلية).
+            </div>
+            <a href="dashboard.php?fix_coordinates=1&csrf_token=<?php echo urlencode($adminController->csrf_token); ?>" style="background: #8a2be2; color: white; padding: 8px 16px; border-radius: 6px; text-decoration: none; font-size: 0.9rem; font-weight: bold; transition: 0.2s; white-space: nowrap; box-shadow: 0 2px 4px rgba(138,43,226,0.2);">
+                تحديث الإحداثيات الآن <i class="fas fa-magic" style="margin-right: 5px;"></i>
+            </a>
+        </div>
+    <?php endif; ?>
+
     <?php if ($error): ?>
         <div class="message error"><?php echo htmlspecialchars($error); ?></div>
     <?php endif; ?>

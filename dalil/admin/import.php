@@ -348,6 +348,17 @@ function performImport($pdo, $temp_file, $default_organizer_name, $selected_rows
                 $resolved_org_id = $organizer_id;
             }
             
+            // Extract coordinates from Google Map URL if provided
+            $latitude = null;
+            $longitude = null;
+            if (!empty($data['google_map'])) {
+                $coords = get_coords_from_google_maps($data['google_map']);
+                if ($coords) {
+                    $latitude = $coords['lat'];
+                    $longitude = $coords['lng'];
+                }
+            }
+
             // Build Program Data
             $program_data = [
                 'organizer_id' => $resolved_org_id,
@@ -368,6 +379,8 @@ function performImport($pdo, $temp_file, $default_organizer_name, $selected_rows
                 'price_notes' => $data['price_notes'] ?? null,
                 'registration_link' => $data['registration_link'] ?? null,
                 'google_map' => $data['google_map'] ?? null,
+                'latitude' => $latitude,
+                'longitude' => $longitude,
                 'ad_link' => $data['ad_link'] ?? null,
                 'program_notes' => $data['program_notes'] ?? null,
                 'status' => 'reviewed',

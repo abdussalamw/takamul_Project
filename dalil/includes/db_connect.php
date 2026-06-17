@@ -99,28 +99,21 @@ function get_coords_from_google_maps($url) {
     }
 
     // Step 3: Try multiple patterns to extract coordinates from the final URL.
-    if (preg_match('/@(-?\d+\.\d+),(-?\d+\.\d+)/', $url, $matches)) {
+    // A: Specific embed pattern: !2d[lng]!3d[lat] (avoiding regex delimiter collision)
+    if (preg_match('/!2d(-?\d+\.\d+)!3d(-?\d+\.\d+)/', $url, $matches)) {
+        $lng = $matches[1];
+        $lat = $matches[2];
+    }
+    // B: Check for data=!3d...!4d...
+    elseif (preg_match('/!3d(-?\d+\.\d+)!4d(-?\d+\.\d+)/', $url, $matches)) {
         $lat = $matches[1];
         $lng = $matches[2];
-    } elseif (preg_match('/data=.*!3d(-?\d+\.\d+)!4d(-?\d+\.\d+)/', $url, $matches)) {
+    }
+    // C: Check for coordinates in query parameter or path
+    // Matches @lat,lng or q=lat,lng or ll=lat,lng or /place/lat,lng or /search/lat,lng
+    elseif (preg_match('/[@|=|\/](-?\d+\.\d+),\s*(-?\d+\.\d+)/', $url, $matches)) {
         $lat = $matches[1];
         $lng = $matches[2];
-    } elseif (preg_match('/ll=(-?\d+\.\d+),(-?\d+\.\d+)/', $url, $matches)) {
-        $lat = $matches[1];
-        $lng = $matches[2];
-    } elseif (preg_match('/q=(-?\d+\.\d+),(-?\d+\.\d+)/', $url, $matches)) {
-        $lat = $matches[1];
-        $lng = $matches[2];
-    } elseif (preg_match('!1d(-?\d+\.\d+)!2d(-?\d+\.\d+)!', $url, $matches)) {
-        $val1 = (float)$matches[1];
-        $val2 = (float)$matches[2];
-        if (abs($val1) < abs($val2)) {
-            $lat = $val1;
-            $lng = $val2;
-        } else {
-            $lat = $val2;
-            $lng = $val1;
-        }
     }
 
     if ($lat !== null && $lng !== null) {

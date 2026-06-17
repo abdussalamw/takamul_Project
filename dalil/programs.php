@@ -247,7 +247,22 @@ $active_style = $site_settings['active_card_style'] ?? '0';
         $lat = !empty($program['latitude']) ? (float)$program['latitude'] : null;
         $lng = !empty($program['longitude']) ? (float)$program['longitude'] : null;
         
-        // إذا لم تتوفر إحداثيات، نقوم بتوليد إحداثيات قطعية موزعة في الرياض بناءً على المنطقة والمعرف
+        // إذا لم تتوفر إحداثيات في قاعدة البيانات، نحاول استخراجها من الرابط مباشرة دون إبطاء الصفحة (تجنب طلبات curl)
+        if (empty($lat) || empty($lng)) {
+            if (!empty($program['google_map'])) {
+                $url = trim($program['google_map']);
+                // نقوم بالتحليل فقط إذا كان الرابط كاملاً ولا يحتاج لاختصار (تجنباً لـ curl البطيء)
+                if (strpos($url, 'maps.app.goo.gl') === false && strpos($url, 'goo.gl/maps') === false) {
+                    $coords = get_coords_from_google_maps($url);
+                    if ($coords) {
+                        $lat = $coords['lat'];
+                        $lng = $coords['lng'];
+                    }
+                }
+            }
+        }
+        
+        // إذا لم تتوفر إحداثيات بعد كل المحاولات، نقوم بتوليد إحداثيات قطعية موزعة في الرياض بناءً على المنطقة والمعرف
         if (empty($lat) || empty($lng)) {
             $seed = intval($program['id']);
             // استخدام جيب وجيب التمام (sin/cos) للمعرّف لتوليد إزاحة فريدة تمنع تطابق العلامات فوق بعضها
