@@ -241,71 +241,82 @@ $active_style = $site_settings['active_card_style'] ?? '0';
     </div>
 
     <?php
-    // إعداد بيانات الخريطة مع إحداثيات قطعية افتراضية إذا لم يتوفر رابط جوجل ماب
+    // إعداد بيانات الخريطة — يُستثنى برامج "عن بعد" كلياً
     $map_programs = [];
+    // جملة تحديث جاهزة لـ lazy caching (تُستخدم عند استخراج إحداثيات جديدة)
+    $save_coords_stmt = $pdo->prepare("UPDATE programs SET latitude = ?, longitude = ? WHERE id = ?");
+
     foreach ($programs as $program) {
+        // ❶ استثناء البرامج "عن بعد" كلياً من الخريطة
+        $attendance = trim($program['attendance_type'] ?? 'حضوري');
+        if ($attendance === 'عن بعد') {
+            continue;
+        }
+
         $lat = !empty($program['latitude']) ? (float)$program['latitude'] : null;
         $lng = !empty($program['longitude']) ? (float)$program['longitude'] : null;
-        
-        // إذا لم تتوفر إحداثيات في قاعدة البيانات، نحاول استخراجها من الرابط مباشرة دون إبطاء الصفحة (تجنب طلبات curl)
-        if (empty($lat) || empty($lng)) {
-            if (!empty($program['google_map'])) {
-                $url = trim($program['google_map']);
-                // نقوم بالتحليل فقط إذا كان الرابط كاملاً ولا يحتاج لاختصار (تجنباً لـ curl البطيء)
-                if (strpos($url, 'maps.app.goo.gl') === false && strpos($url, 'goo.gl/maps') === false) {
-                    $coords = get_coords_from_google_maps($url);
-                    if ($coords) {
-                        $lat = $coords['lat'];
-                        $lng = $coords['lng'];
-                    }
-                }
+
+        // ❷ لا إحداثيات مخزّنة → نستخرجها من الرابط (الدالة تعالج كل الأنواع)
+        if ((empty($lat) || empty($lng)) && !empty($program['google_map'])) {
+            $coords = get_coords_from_google_maps($program['google_map']);
+            if ($coords) {
+                $lat = $coords['lat'];
+                $lng = $coords['lng'];
+                // ❷-أ lazy cache: احفظ الإحداثيات فوراً لتجنب الاستخراج مجدداً في المستقبل
+                $save_coords_stmt->execute([$lat, $lng, $program['id']]);
             }
         }
-        
-        // إذا لم تتوفر إحداثيات بعد كل المحاولات، نقوم بتوليد إحداثيات قطعية موزعة في الرياض بناءً على المنطقة والمعرف
+
+        // ❸ لا إحداثيات حقيقية → لا نضيف هذا البرنامج للخريطة
         if (empty($lat) || empty($lng)) {
-            $seed = intval($program['id']);
-            // استخدام جيب وجيب التمام (sin/cos) للمعرّف لتوليد إزاحة فريدة تمنع تطابق العلامات فوق بعضها
-            $offset_lat = sin($seed * 45) * 0.025;
-            $offset_lng = cos($seed * 45) * 0.025;
-            
-            $direction = !empty($program['Direction']) ? trim($program['Direction']) : '';
-            
-            if ($direction === 'شمال الرياض') {
-                $lat = 24.794 + $offset_lat;
-                $lng = 46.678 + $offset_lng;
-            } elseif ($direction === 'جنوب الرياض') {
-                $lat = 24.582 + $offset_lat;
-                $lng = 46.721 + $offset_lng;
-            } elseif ($direction === 'شرق الرياض') {
-                $lat = 24.725 + $offset_lat;
-                $lng = 46.802 + $offset_lng;
-            } elseif ($direction === 'غرب الرياض') {
-                $lat = 24.653 + $offset_lat;
-                $lng = 46.584 + $offset_lng;
-            } else {
-                // وسط الرياض (العليا/السليمانية)
-                $lat = 24.713 + $offset_lat;
-                $lng = 46.675 + $offset_lng;
+            continue;
+        }
+
+        // ❹ اسم الموقع: venue_name أولاً ثم location كبديل
+        $display_location = !empty($program['venue_name']) ? $program['venue_name'] : ($program['location'] ?? '');
+
+        // ❺ تنسيق التواريخ بالهجري والميلادي
+        $map_start_dates = HijriDate::getDatesForDisplay($program['start_date']);
+        $map_end_dates   = HijriDate::getDatesForDisplay($program['end_date'] ?? '');
+
+        $start_date_formatted = $map_start_dates['hijri']
+            ? $map_start_dates['hijri'] . ' | ' . $map_start_dates['gregorian']
+            : ($program['start_date'] ?? '-');
+
+        $end_date_formatted = $map_end_dates['hijri']
+            ? $map_end_dates['hijri'] . ' | ' . $map_end_dates['gregorian']
+            : ($program['end_date'] ?? '');
+
+        // ❻ حساب حالة "انتهى التسجيل"
+        $map_is_ended = false;
+        if (!empty($program['end_date'])) {
+            $clean_end = str_replace('/', '-', trim($program['end_date']));
+            $end_ts = strtotime($clean_end);
+            if (!$end_ts && preg_match('/^(\d{1,2})-(\d{1,2})-(\d{4})$/', $clean_end, $m)) {
+                $end_ts = strtotime($m[3] . '-' . $m[2] . '-' . $m[1]);
+            }
+            if ($end_ts) {
+                $map_is_ended = $end_ts < strtotime(date('Y-m-d'));
             }
         }
-        
+
         $map_programs[] = [
-            'id' => $program['id'],
-            'title' => $program['title'],
-            'organizer' => $program['organizer'],
-            'location' => $program['location'],
-            'Direction' => $program['Direction'] ?? '',
-            'duration' => $program['duration'],
-            'start_date' => $program['start_date'],
-            'end_date' => $program['end_date'] ?? '',
-            'age_group' => $program['age_group'],
-            'price' => $program['price'],
-            'price_notes' => $program['price_notes'] ?? '',
+            'id'                => $program['id'],
+            'title'             => $program['title'],
+            'organizer'         => $program['organizer'],
+            'location'          => $display_location,
+            'Direction'         => $program['Direction'] ?? '',
+            'duration'          => $program['duration'],
+            'start_date'        => $start_date_formatted,
+            'end_date'          => $end_date_formatted,
+            'age_group'         => $program['age_group'],
+            'price'             => $program['price'],
+            'price_notes'       => $program['price_notes'] ?? '',
             'registration_link' => $program['registration_link'],
-            'lat' => $lat,
-            'lng' => $lng,
-            'description' => $program['description'] ?? ''
+            'is_ended'          => $map_is_ended,
+            'lat'               => $lat,
+            'lng'               => $lng,
+            'description'       => $program['description'] ?? ''
         ];
     }
     ?>

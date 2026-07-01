@@ -205,6 +205,7 @@ include 'programs.php';
 
                     // إعداد بطاقة منبثقة بتصميم أنيق يتوافق مع البطاقات الأساسية للموقع
                     var isFree = (loc.price == 0 || ['مجاناً', 'مجاني'].includes(String(loc.price).trim().toLowerCase()));
+                    var isEnded = loc.is_ended === true;
                     
                     var priceNum = parseFloat(loc.price);
                     var priceClean = (isNaN(priceNum)) ? loc.price : (priceNum == parseInt(priceNum) ? parseInt(priceNum) : priceNum);
@@ -218,9 +219,20 @@ include 'programs.php';
                     var words = (loc.description || '').split(' ');
                     var shortDesc = words.slice(0, 15).join(' ') + (words.length > 15 ? '...' : '');
 
+                    // شارة "انتهى التسجيل" إذا كان البرنامج منتهياً
+                    var endedBadgeHtml = isEnded
+                        ? `<div class="popup-ended-badge"><i class="fas fa-lock"></i> انتهى التسجيل</div>`
+                        : '';
+
+                    // زر التسجيل: مغلق إذا انتهى البرنامج
+                    var registerBtnHtml = isEnded
+                        ? `<span class="popup-register-btn ended-btn">مغلق</span>`
+                        : `<a href="${loc.registration_link || '#'}" class="popup-register-btn" target="_blank" rel="noopener noreferrer">سجل الآن</a>`;
+
                     // استخدام نفس كلاسات التخصيص والأنماط المعينة للبطاقات
                     var popupContent = `
-                        <div class="map-popup-card style-${activeCardStyle}">
+                        <div class="map-popup-card style-${activeCardStyle}${isEnded ? ' ended' : ''}">
+                            ${endedBadgeHtml}
                             <div class="popup-header">
                                 <h3 class="popup-title">${loc.title}</h3>
                                 <div class="popup-organizer">
@@ -232,7 +244,7 @@ include 'programs.php';
                                 <div class="popup-details">
                                     <div class="popup-detail-item">
                                         <i class="fas fa-map-marker-alt"></i>
-                                        <span>${loc.location}</span>
+                                        <span>${loc.location || 'غير محدد'}</span>
                                     </div>
                                     <div class="popup-detail-item">
                                         <i class="fas fa-clock"></i>
@@ -260,7 +272,7 @@ include 'programs.php';
                                     <span class="popup-price-value ${isFree ? 'free' : ''}">${priceText}</span>
                                     ${priceNotesHtml}
                                 </div>
-                                <a href="${loc.registration_link || '#'}" class="popup-register-btn" target="_blank" rel="noopener noreferrer">سجل الآن</a>
+                                ${registerBtnHtml}
                             </div>
                         </div>
                     `;

@@ -1301,6 +1301,42 @@ if (session_status() === PHP_SESSION_NONE) {
             transform: translateY(-1px);
         }
 
+        /* شارة "انتهى التسجيل" داخل popup الخريطة */
+        .map-popup-card .popup-ended-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            background: #e53e3e;
+            color: white;
+            padding: 3px 10px;
+            border-radius: 50px;
+            font-size: 0.75rem;
+            font-weight: 700;
+            margin-bottom: 6px;
+            box-shadow: 0 2px 6px rgba(229, 62, 62, 0.25);
+        }
+
+        /* البطاقة المنتهية في popup الخريطة */
+        .map-popup-card.ended {
+            filter: grayscale(0.7) brightness(0.95);
+        }
+
+        /* زر "مغلق" في popup الخريطة */
+        .map-popup-card .popup-register-btn.ended-btn {
+            background: #aaa;
+            color: white;
+            padding: 5px 12px;
+            border-radius: 20px;
+            font-size: 0.8rem;
+            font-weight: 600;
+            cursor: default;
+            display: inline-block;
+        }
+        .map-popup-card.style-3 .popup-register-btn.ended-btn {
+            background: #999;
+            border-radius: 6px;
+        }
+
         /* ==========================================================================
            الثيم الفاخر الكامل للصفحة (theme-premium) — ألوان مقلوسة: الذهبي رئيسي
            ========================================================================== */
